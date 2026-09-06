@@ -65,14 +65,10 @@ function asegurarDir(dirPath) {
 }
 
 function copiarDir(src, dest) {
-    asegurarDir(dest);
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-    for (const entry of entries) {
-        const srcPath = path.join(src, entry.name);
-        const destPath = path.join(dest, entry.name);
-        if (entry.isDirectory()) copiarDir(srcPath, destPath);
-        else fs.copyFileSync(srcPath, destPath);
-    }
+    // fs.cpSync maneja symlinks, permisos y archivos especiales — necesario
+    // en macOS, donde node_modules/electron/.../Electron Framework.framework
+    // trae symlinks internos que fs.copyFileSync no puede copiar (ENOTSUP).
+    fs.cpSync(src, dest, { recursive: true, force: true, dereference: false });
 }
 
 function ofuscarDir(src, dest) {
