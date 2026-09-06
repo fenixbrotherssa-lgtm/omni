@@ -167,6 +167,14 @@ const CajaModule = {
                 <button type="button" class="btn-neo" style="padding:6px 10px; color:#8e44ad;" title="Adjuntar factura real u otro respaldo" onclick="CajaModule.adjuntarComprobante(${m.MovimientoID})"><i class="fas fa-paperclip"></i></button>
             ` : '';
 
+            // Trazabilidad contable: clasificar (si no tiene asiento) o ver el asiento
+            const esCheckinRow = !!recIdMov;
+            const btnContab = esCheckinRow ? '' : (
+                m.AsientoID
+                    ? `<button type="button" class="btn-neo" style="padding:6px 10px; color:#2e7d32;" title="Ver asiento contable" onclick="CajaModule.verAsiento(${m.AsientoID})"><i class="fas fa-book"></i></button>`
+                    : `<button type="button" class="btn-neo" style="padding:6px 10px; color:#d35400; background:#fff3e0;" title="Falta clasificar la cuenta contable" onclick="CajaModule.clasificarMovimiento(${m.MovimientoID})"><i class="fas fa-scale-unbalanced"></i></button>`
+            );
+
             return `
             <tr>
                 <td style="font-size:0.75rem; font-weight:700; color:#718096;">
@@ -183,7 +191,7 @@ const CajaModule = {
                 <td style="text-align:right; font-weight:900; font-size:1.1rem; color: ${m.TipoMovimiento === 'Ingreso' ? 'var(--hotel-success)' : 'var(--hotel-danger)'}">
                     ${m.TipoMovimiento === 'Ingreso' ? '+' : '-'}$${parseFloat(m.Monto).toFixed(2)}
                 </td>
-                <td style="text-align:center; display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">${botonesEgreso} ${btnAnular}</td>
+                <td style="text-align:center; display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">${botonesEgreso} ${btnContab} ${btnAnular}</td>
             </tr>
         `}).join('');
     },
@@ -197,6 +205,69 @@ const CajaModule = {
         subirComprobante(movimientoId, () => this.cargarDatosDashboard());
     },
 
+    async clasificarMovimiento(movimientoId) {
+        if (!this._planContra) await this.cargarPlanContra();
+        const opciones = (this._planContra || []).length
+            ? this._contraOptions().replace('— clasificar después —', '— elige la cuenta —')
+            : '<option value="">(plan de cuentas no disponible)</option>';
+        const r = await Swal.fire({
+            title: 'Clasificar movimiento de caja',
+            html: `<p style="font-size:0.85rem; color:#4a5568; margin:0 0 10px;">Elige la cuenta de contrapartida (el gasto o el ingreso). Se generará el asiento contra Caja/Bancos.</p>
+                   <select id="swcm" class="swal2-input" style="display:block; max-width:100%;">${opciones}</select>`,
+            showCancelButton: true, confirmButtonText: 'Generar asiento', cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const v = document.getElementById('swcm').value;
+                if (!v) { Swal.showValidationMessage('Elige una cuenta'); return false; }
+                return v;
+            }
+        });
+        if (!r.isConfirmed) return;
+        try {
+            await api.post(`/caja/movimiento/${movimientoId}/clasificar`, { ContrapartidaCuentaID: r.value });
+            window.Toast.fire({ icon: 'success', title: 'Asiento generado' });
+            this.cargarDatosDashboard();
+        } catch (e) {
+            Swal.fire('Error', e.response?.data?.error || 'No se pudo clasificar.', 'error');
+        }
+    },
+
+    async verAsiento(asientoId) {
+        try {
+            const res = await api.get(`/contabilidad/asientos/${asientoId}`);
+            const a = res.data.asiento;
+            const filas = (res.data.detalle || []).map(d => `
+                <tr>
+                    <td style="text-align:left">${d.Codigo} · ${d.CuentaNombre}</td>
+                    <td style="text-align:right">${parseFloat(d.Debe) ? '$' + parseFloat(d.Debe).toFixed(2) : ''}</td>
+                    <td style="text-align:right">${parseFloat(d.Haber) ? '$' + parseFloat(d.Haber).toFixed(2) : ''}</td>
+                </tr>`).join('');
+            Swal.fire({
+                title: `Asiento #${a.Numero} · ${a.Origen}`,
+                html: `
+                    <div style="font-size:13px;text-align:left;margin-bottom:6px">
+                        <b>Fecha:</b> ${new Date(a.Fecha).toLocaleDateString()} &nbsp;·&nbsp;
+                        <b>Estado:</b> ${a.Estado}<br><b>Glosa:</b> ${a.Glosa || ''}
+                    </div>
+                    <table style="width:100%;font-size:13px;border-collapse:collapse">
+                        <thead><tr>
+                            <th style="text-align:left;border-bottom:1px solid #ccc">Cuenta</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Debe</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Haber</th>
+                        </tr></thead>
+                        <tbody>${filas}</tbody>
+                        <tfoot><tr style="font-weight:bold;border-top:2px solid #333">
+                            <td style="text-align:right">TOTAL</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalDebe).toFixed(2)}</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalHaber).toFixed(2)}</td>
+                        </tr></tfoot>
+                    </table>`,
+                width: 620
+            });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'No se pudo cargar el asiento.', 'error');
+        }
+    },
+
     abrirModalApertura() {
         this.modo = 'APERTURA';
         this.prepararModal("APERTURA DE TURNO", 'sec-apertura', false);
@@ -205,7 +276,35 @@ const CajaModule = {
     abrirModalMovimiento() {
         this.modo = 'MOVIMIENTO';
         this.prepararModal("NUEVO MOVIMIENTO", 'sec-movimiento', false);
-        this.gestionarCamposVoucher(); 
+        this.gestionarCamposVoucher();
+        this.cargarPlanContra();
+    },
+
+    _sedeId() {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return localStorage.getItem('currentSedeId') || user.SedeID || this.cajaActiva?.SedeID || 1;
+    },
+
+    _contraOptions() {
+        const p = this._planContra || [];
+        if (!p.length) return '<option value="">— clasificar después —</option>';
+        const orden = { GASTO: 0, ACTIVO: 1, PASIVO: 2, INGRESO: 3, PATRIMONIO: 4, ORDEN: 5 };
+        const tipos = [...new Set(p.map(c => c.Tipo))].sort((a, b) => (orden[a] ?? 9) - (orden[b] ?? 9));
+        return '<option value="">— clasificar después —</option>' + tipos.map(t =>
+            `<optgroup label="${t}">` + p.filter(c => c.Tipo === t)
+                .map(c => `<option value="${c.CuentaID}">${c.Codigo} · ${c.Nombre}</option>`).join('') + '</optgroup>'
+        ).join('');
+    },
+
+    async cargarPlanContra() {
+        const sel = document.getElementById('contraMov');
+        try {
+            if (!this._planContra) {
+                const r = await api.get(`/contabilidad/plan?sedeId=${this._sedeId()}&soloMovimiento=1`);
+                this._planContra = (r.data && r.data.cuentas) || [];
+            }
+        } catch { this._planContra = []; }
+        if (sel) sel.innerHTML = this._contraOptions();
     },
 
     gestionarCamposVoucher() {
@@ -1032,15 +1131,21 @@ const CajaModule = {
                     formData.append('ref', refVal);
                     formData.append('obs', document.getElementById('obsMov').value);
 
+                    const contraVal = document.getElementById('contraMov')?.value || '';
+                    if (contraVal) formData.append('contrapartidaCuentaId', contraVal);
+
                     if (tieneVoucher) {
                         formData.append('voucher', fileInput.files[0]);
                     }
 
-                    await api.post('/caja/movimiento', formData, {
+                    const rmov = await api.post('/caja/movimiento', formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
                     });
 
-                    window.Toast.fire({ icon: 'success', title: 'MOVIMIENTO REGISTRADO' });
+                    window.Toast.fire({
+                        icon: 'success',
+                        title: rmov.data?.asientoGenerado ? 'MOVIMIENTO REGISTRADO Y CONTABILIZADO' : 'MOVIMIENTO REGISTRADO'
+                    });
                 }
                 else if (this.modo === 'CIERRE') {
                     const dif = parseFloat((this.montoDeclaradoActual - this.saldoEsperadoActual).toFixed(2));

@@ -1,5 +1,5 @@
 // ============================================================
-//  build.js  -  MasterHotel Frontend (Electron)
+//  build.js  -  OMNI CORE Frontend (Electron)
 //  CasRodsoft Development
 // ============================================================
 
@@ -100,7 +100,7 @@ function ofuscarDir(src, dest) {
 
 async function build() {
     console.log('\n========================================');
-    console.log('  MasterHotel Frontend - Build');
+    console.log('  OMNI CORE Frontend - Build');
     console.log('========================================\n');
 
     limpiarDir(DIST_SRC);
@@ -145,29 +145,33 @@ async function build() {
         console.warn('AVISO: config.js no existe en la raiz, no se incluyo.');
     }
 
-    // Por defecto compila para Windows (comportamiento local de siempre).
-    // En CI (GitHub Actions, runner macOS) se setea TARGET_PLATFORM=darwin.
+    // ── Empaquetado con electron-builder ───────────────────────
+    //  Windows -> instalador NSIS + electron-updater (latest.yml + .blockmap).
+    //  macOS   -> DMG (x64 + arm64), igual patrón.
+    //  Se ejecuta DESDE dist_src/ (código ya ofuscado, con su package.json y
+    //  node_modules) y la salida va a ../dist.
+    //
+    //  Para PUBLICAR de una vez al servidor de descargas: exporta
+    //    OMNI_PUBLISH=1  y  OMNI_UPDATE_URL=https://tudominio/downloads/omnicore/
+    //  (o edita build.publish.url en package.json). Sin esas variables solo
+    //  genera los archivos localmente en dist/ (publish never).
     const PLATFORM = process.env.TARGET_PLATFORM || 'win32';
+    const flagPlataforma = PLATFORM === 'darwin' ? '--mac' : '--win --x64';
+    const publish = process.env.OMNI_PUBLISH === '1' ? 'always' : 'never';
+    const urlOverride = process.env.OMNI_UPDATE_URL
+        ? ` -c.publish.url=${process.env.OMNI_UPDATE_URL}` : '';
+    const outOverride = ' -c.directories.output=../dist';
 
-    if (PLATFORM === 'darwin') {
-        const ICON = './assets/icono.icns';
-        for (const arch of ['x64', 'arm64']) {
-            console.log(`\nEmpaquetando con Electron Packager (macOS ${arch})...`);
-            try {
-                execSync(`npx electron-packager ./dist_src MasterHotel --platform=darwin --arch=${arch} --out=./dist --overwrite --icon=${ICON}`, { stdio: 'inherit' });
-                console.log(`\nCOMPILACION macOS ${arch} EXITOSA`);
-            } catch (err) {
-                console.error(`\nError en Electron Packager (${arch}):`, err.message);
-            }
-        }
-    } else {
-        console.log('\nEmpaquetando con Electron Packager (Windows)...');
-        try {
-            execSync('npx electron-packager ./dist_src MasterHotel --platform=win32 --arch=x64 --out=./dist --overwrite --icon=./assets/icono.ico', { stdio: 'inherit' });
-            console.log('\nCOMPILACION DE ELECTRON EXITOSA');
-        } catch (err) {
-            console.error('\nError en Electron Packager:', err.message);
-        }
+    console.log(`\nEmpaquetando con electron-builder (${PLATFORM}, publish: ${publish})...`);
+    try {
+        execSync(
+            `npx electron-builder ${flagPlataforma} --publish ${publish}${outOverride}${urlOverride}`,
+            { stdio: 'inherit', cwd: DIST_SRC }
+        );
+        console.log('\nCOMPILACION electron-builder EXITOSA — revisa la carpeta dist/');
+    } catch (err) {
+        console.error('\nError en electron-builder:', err.message);
+        process.exitCode = 1;
     }
 
     limpiarDir(DIST_SRC);

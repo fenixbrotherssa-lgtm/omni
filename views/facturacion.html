@@ -619,6 +619,23 @@
                             <h2>TOTAL: $<span id="cpTotal">0.00</span></h2>
                         </div>
 
+                        <div style="margin-top:15px;">
+                            <label class="label-hint">Cuenta contable — ¿qué se compró? (inventario, gasto, activo…)</label>
+                            <select id="cpContra" class="input-neo"></select>
+                            <small style="display:block; color:#8b98a8; font-size:0.72rem;">Si la dejas en "clasificar después" se registra la compra pero <b>no se genera asiento</b> hasta clasificarla.</small>
+                        </div>
+
+                        <div id="cpDimWrap" style="margin-top:12px; display:none; gap:10px; grid-template-columns:1fr 1fr;">
+                            <div>
+                                <label class="label-hint">Centro de costo</label>
+                                <select id="cpCentro" class="input-neo"><option value="">— ninguno —</option></select>
+                            </div>
+                            <div>
+                                <label class="label-hint">Proyecto</label>
+                                <select id="cpProyecto" class="input-neo"><option value="">— ninguno —</option></select>
+                            </div>
+                        </div>
+
                         <div style="background:#f1f3f5; border-radius:15px; padding:15px; margin-top:15px;">
                             <label style="display:flex; align-items:center; gap:10px; font-weight:900; font-size:0.8rem; color:var(--hotel-blue); cursor:pointer;">
                                 <input type="checkbox" id="cpRegistrarPago" checked onchange="RetencionesModule.togglePagoCompra()" style="width:18px; height:18px;">

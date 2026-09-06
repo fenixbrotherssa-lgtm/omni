@@ -1,34 +1,151 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-function createWindow() {
-    // 1. CARGA DINAMICA DE CONFIGURACION
-    const configPath = app.isPackaged
+let mainWindow = null;
+
+// ── Ruta del config.js editable (dirección del backend) ──────
+// Empaquetado: junto a resources\ (extraResource, fuera del asar → escribible).
+// Desarrollo: la raíz del proyecto.
+function configPath() {
+    return app.isPackaged
         ? path.join(process.resourcesPath, 'config.js')
         : path.join(__dirname, 'config.js');
+}
 
-    let apiFinal = 'http://localhost:4000/api';
+function leerConfig() {
+    const p = configPath();
     try {
-        if (fs.existsSync(configPath)) {
-            delete require.cache[require.resolve(configPath)];
-            const config = require(configPath);
-            apiFinal = config.getApiUrl();
-            console.log("Configuracion cargada con exito:", apiFinal);
-        } else {
-            console.warn("Archivo config no encontrado en: " + configPath);
+        if (fs.existsSync(p)) {
+            delete require.cache[require.resolve(p)];
+            return require(p);
         }
+    } catch (e) { console.error('config.js:', e.message); }
+    return null;
+}
+
+// ── Impresión térmica / cajón (sin cambios) ─────────────────
+ipcMain.handle('omni:list-printers', async () => {
+    try {
+        if (!mainWindow) return [];
+        const printers = await mainWindow.webContents.getPrintersAsync();
+        return printers.map(p => ({ name: p.name, displayName: p.displayName, isDefault: p.isDefault }));
+    } catch (e) {
+        console.error('omni:list-printers', e.message);
+        return [];
+    }
+});
+
+ipcMain.handle('omni:print-ticket', async (_e, { data, options }) => {
+    try {
+        const { PosPrinter } = require('electron-pos-printer');
+        await PosPrinter.print(data, options);
+        return { ok: true };
     } catch (err) {
-        console.error("ERROR LEYENDO CONFIGURACION:", err.message);
+        console.error('omni:print-ticket', err && err.message || err);
+        return { ok: false, error: String(err && err.message || err) };
+    }
+});
+
+ipcMain.handle('omni:cash-drawer', async (_e, printerName) => {
+    try {
+        const { PosPrinter } = require('electron-pos-printer');
+        await PosPrinter.openCashDrawer(printerName);
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: String(err && err.message || err) };
+    }
+});
+
+// ── Configuración de servidor (dirección del backend) ───────
+ipcMain.handle('omni:get-server', () => {
+    const c = leerConfig();
+    return {
+        address: c ? c.SERVER_ADDRESS : 'localhost',
+        port: c ? c.PORT : 3636,
+        apiUrl: c && c.getApiUrl ? c.getApiUrl() : 'http://localhost:3636/api'
+    };
+});
+
+// Reescribe config.js con la dirección que el usuario ingresa y reinicia la app.
+ipcMain.handle('omni:set-server', (_e, { address, port }) => {
+    const dir = String(address || '').trim() || 'localhost';
+    const prt = parseInt(port) || 3636;
+    const contenido =
+`const CONFIG = {
+    ENV: 'production',
+    SERVER_ADDRESS: ${JSON.stringify(dir)},
+    PORT: ${prt},
+
+    getApiUrl() {
+        const isDomain = this.SERVER_ADDRESS.includes('.') && !/[0-9]$/.test(this.SERVER_ADDRESS);
+        const protocol = isDomain ? 'https' : 'http';
+        const suffix = isDomain ? '' : ':' + this.PORT;
+        return protocol + '://' + this.SERVER_ADDRESS + suffix + '/api';
+    }
+};
+
+module.exports = CONFIG;
+`;
+    try {
+        fs.writeFileSync(configPath(), contenido, 'utf8');
+        app.relaunch();
+        app.exit(0);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+});
+
+// ── Auto-actualización (electron-updater, solo empaquetado) ─
+//  Feed "generic": lee latest.yml del servidor definido en
+//  package.json > build.publish.url (o el override de compilación).
+function iniciarAutoUpdate(win) {
+    if (!app.isPackaged) return;
+    let autoUpdater;
+    try { ({ autoUpdater } = require('electron-updater')); }
+    catch (e) { console.warn('electron-updater no disponible:', e.message); return; }
+
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    const avisar = (estado, extra = {}) => {
+        try { win.webContents.send('omni:update-status', { estado, ...extra }); } catch (_) {}
+    };
+
+    autoUpdater.on('checking-for-update', () => avisar('buscando'));
+    autoUpdater.on('update-available', (info) => avisar('disponible', { version: info.version }));
+    autoUpdater.on('update-not-available', () => avisar('al-dia'));
+    autoUpdater.on('download-progress', (p) => avisar('descargando', { porcentaje: Math.round(p.percent) }));
+    autoUpdater.on('update-downloaded', (info) => avisar('listo', { version: info.version }));
+    autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
+
+    ipcMain.handle('omni:update-check', async () => {
+        try { const r = await autoUpdater.checkForUpdates(); return { ok: true, version: r?.updateInfo?.version || null }; }
+        catch (e) { return { ok: false, error: e.message }; }
+    });
+    ipcMain.on('omni:update-install', () => { try { autoUpdater.quitAndInstall(false, true); } catch (_) {} });
+
+    // primer chequeo a los ~4s de abrir (no bloquea el arranque)
+    setTimeout(() => { autoUpdater.checkForUpdatesAndNotify().catch(() => {}); }, 4000);
+}
+
+function createWindow() {
+    const c = leerConfig();
+    let apiFinal = 'http://localhost:3636/api';
+    if (c && c.getApiUrl) {
+        try { apiFinal = c.getApiUrl(); console.log('Configuración cargada:', apiFinal); }
+        catch (e) { console.error('getApiUrl:', e.message); }
+    } else {
+        console.warn('config.js no encontrado en: ' + configPath());
     }
 
-    // 2. CREACION DE LA VENTANA
     const win = new BrowserWindow({
         width: 1400,
         height: 900,
-        title: "MasterHotel v1.0",
+        title: 'OMNI CORE — Plataforma Contable',
         backgroundColor: '#0a0a0b',
-        icon: path.join(__dirname, 'assets/logo.png'),
+        icon: path.join(__dirname, 'assets/icono.ico'),
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -38,52 +155,37 @@ function createWindow() {
         }
     });
 
-    win.loadFile('index.html');
+    mainWindow = win;
+    win.on('closed', () => { mainWindow = null; });
 
+    win.loadFile('index.html');
     win.setMenu(null);
 
     if (!app.isPackaged) {
         win.webContents.openDevTools();
     } else {
-        win.webContents.on('devtools-opened', () => {
-            win.webContents.closeDevTools();
-        });
+        win.webContents.on('devtools-opened', () => win.webContents.closeDevTools());
     }
 
     win.webContents.on('before-input-event', (event, input) => {
-        if (input.key === 'F11') {
-            win.setFullScreen(!win.isFullScreen());
-            return;
-        }
-
+        if (input.key === 'F11') { win.setFullScreen(!win.isFullScreen()); return; }
         if (!app.isPackaged) {
-            if (((input.control || input.meta) && input.key.toLowerCase() === 'r') || input.key === 'F5') {
-                win.reload();
-            }
-            if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
-                win.webContents.toggleDevTools();
-            }
+            if (((input.control || input.meta) && input.key.toLowerCase() === 'r') || input.key === 'F5') win.reload();
+            if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') win.webContents.toggleDevTools();
         } else {
             if (
                 (((input.control || input.meta) && input.key.toLowerCase() === 'r') || input.key === 'F5') ||
                 (((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') || input.key === 'F12')
-            ) {
-                event.preventDefault();
-            }
+            ) event.preventDefault();
         }
     });
+
+    iniciarAutoUpdate(win);
 }
 
 app.whenReady().then(() => {
     createWindow();
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

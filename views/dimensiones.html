@@ -1,0 +1,111 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-diagram-project"></i> DIMENSIONES Y PERÍODOS</h2>
+                <p class="omni-sub">Centros de costo · Proyectos · Cierre de períodos contables</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="omni-toolbar">
+        <button class="omni-btn dm-tab" data-tab="centros" onclick="DimensionesModule.tab('centros')"><i class="fas fa-layer-group"></i> Centros de costo</button>
+        <button class="omni-btn dm-tab" data-tab="proyectos" onclick="DimensionesModule.tab('proyectos')"><i class="fas fa-folder-tree"></i> Proyectos</button>
+        <button class="omni-btn dm-tab" data-tab="periodos" onclick="DimensionesModule.tab('periodos')"><i class="fas fa-lock"></i> Períodos contables</button>
+        <button class="omni-btn dm-tab" data-tab="presupuestos" onclick="DimensionesModule.tab('presupuestos')"><i class="fas fa-chart-pie"></i> Presupuestos</button>
+    </div>
+
+    <!-- CENTROS DE COSTO -->
+    <div id="dm-centros" class="dm-panel">
+        <div class="omni-toolbar">
+            <button class="omni-btn omni-btn-primary admin-only" onclick="DimensionesModule.nuevoCentro()"><i class="fas fa-plus"></i> NUEVO CENTRO</button>
+            <span class="omni-count" id="dm-cc-count">0</span>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr><th style="width:140px">Código</th><th>Nombre</th><th style="width:110px">Ámbito</th><th style="width:90px">Estado</th><th style="width:120px" class="admin-only">Acción</th></tr></thead>
+                <tbody id="dm-cc-body"><tr><td colspan="5" class="omni-empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PROYECTOS -->
+    <div id="dm-proyectos" class="dm-panel" style="display:none">
+        <div class="omni-toolbar">
+            <button class="omni-btn omni-btn-primary admin-only" onclick="DimensionesModule.nuevoProyecto()"><i class="fas fa-plus"></i> NUEVO PROYECTO</button>
+            <span class="omni-count" id="dm-pr-count">0</span>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr><th style="width:140px">Código</th><th>Nombre</th><th style="width:150px">Vigencia</th><th style="width:110px">Estado</th><th style="width:150px" class="admin-only">Acción</th></tr></thead>
+                <tbody id="dm-pr-body"><tr><td colspan="5" class="omni-empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PRESUPUESTOS -->
+    <div id="dm-presupuestos" class="dm-panel" style="display:none">
+        <div class="omni-toolbar">
+            <label>Año <input type="number" id="dm-pp-anio" class="omni-input" style="width:110px"></label>
+            <label>Mes <select id="dm-pp-mes" class="omni-input" style="width:130px"><option value="">Todo el año</option></select></label>
+            <button class="omni-btn" onclick="DimensionesModule.cargarPresupuestos()"><i class="fas fa-rotate"></i> Ver</button>
+            <button class="omni-btn omni-btn-primary admin-only" onclick="DimensionesModule.nuevoPresupuesto()"><i class="fas fa-plus"></i> Nueva línea</button>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr><th>Concepto</th><th style="width:100px">Período</th><th style="width:120px" class="num">Presupuesto</th><th style="width:120px" class="num">Real</th><th style="width:120px" class="num">Variación</th><th style="width:110px">Cumpl.</th><th style="width:70px" class="admin-only"></th></tr></thead>
+                <tbody id="dm-pp-body"><tr><td colspan="7" class="omni-empty">Elige año y pulsa Ver.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PERIODOS -->
+    <div id="dm-periodos" class="dm-panel" style="display:none">
+        <div class="omni-toolbar">
+            <label>Año <input type="number" id="dm-anio" class="omni-input" style="width:110px"></label>
+            <button class="omni-btn" onclick="DimensionesModule.cargarPeriodos()"><i class="fas fa-rotate"></i> Ver</button>
+            <button class="omni-btn admin-only" style="background:#1a365d;color:#fff" onclick="DimensionesModule.cerrarEjercicio()"><i class="fas fa-lock"></i> Cerrar ejercicio</button>
+            <span class="omni-sub" style="margin-left:auto">Cerrar un mes bloquea la creación y anulación de asientos con fecha en ese mes.</span>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr><th style="width:120px">Mes</th><th style="width:120px">Estado</th><th>Cerrado por</th><th style="width:170px">Fecha de cierre</th><th style="width:170px" class="admin-only">Acción</th></tr></thead>
+                <tbody id="dm-pe-body"><tr><td colspan="5" class="omni-empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ── base omni (compartido con el resto del software) ── */
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn:hover { background:#d3dae4; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-btn-danger { background:#fdeceb; color:#e74c3c; } .omni-btn-danger:hover { background:#f8d7d5; }
+    .omni-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; color:#2c3e50; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-check { font-size:.78rem; font-weight:700; color:#5a6b7d; display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .omni-count { margin-left:auto; font-size:.75rem; font-weight:800; color:#718096; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:64vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:12px 14px; text-align:left; font-size:.68rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:9px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+
+.dm-tab.dm-active { background:#1a365d; color:#fff; }
+.dm-panel { margin-top:4px; }
+.dm-pill { padding:3px 10px; border-radius:20px; font-size:.68rem; font-weight:800; text-transform:uppercase; }
+.dm-pill.on   { background:#dcfce7; color:#166534; }
+.dm-pill.off  { background:#fee2e2; color:#991b1b; }
+.dm-pill.corp { background:#e0e7ff; color:#3730a3; }
+</style>

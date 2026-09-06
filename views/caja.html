@@ -347,6 +347,14 @@
 
                 <label class="label-hint">Observación Detallada</label>
                 <textarea id="obsMov" class="input-neo" rows="2" required placeholder="Motivo del movimiento..."></textarea>
+
+                <label class="label-hint">Cuenta contable — contrapartida <span style="font-weight:400;">(¿qué gasto / ingreso es?)</span></label>
+                <select id="contraMov" class="input-neo">
+                    <option value="">— clasificar después —</option>
+                </select>
+                <p style="font-size:0.63rem; color:#718096; margin:4px 0 0;">
+                    Si eliges la cuenta, el movimiento se contabiliza al instante. Si no, quedará pendiente de clasificar en el Libro Diario.
+                </p>
             </div>
 
             <div id="sec-cierre" class="hidden">

@@ -268,7 +268,7 @@ const FacturacionModule = {
 
         marcarBuscando(inputDoc, true);
         try {
-            const res = await api.get(`/recepcion/cliente/${doc}`);
+            const res = await api.get(`/clientes/documento/${doc}`);
 
             if (res.data.success) {
                 const c = res.data.cliente;

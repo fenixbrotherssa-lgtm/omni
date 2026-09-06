@@ -1,354 +1,328 @@
-<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"></head>
-<body>
-
-<div class="crm-wrapper">
-
-    <!-- Encabezado -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
-        <div style="display:flex; align-items:center; gap:15px;">
-            <button onclick="App.renderView('dashboard','viewport')" title="REGRESAR"
-                style="background:#e0e0e4; border:none; width:45px; height:45px; padding:0; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#c5a059; box-shadow:6px 6px 12px #bebebe,-6px -6px 12px #ffffff; font-size:1.1rem;">
-                <i class="fas fa-arrow-left"></i>
-            </button>
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
             <div>
-                <h2 style="margin:0; color:#1a365d; font-weight:900; letter-spacing:2px; font-size:1.1rem;">
-                    <i class="fas fa-users" style="color:#c5a059;"></i> CRM DE HU&Eacute;SPEDES
-                </h2>
-                <small style="color:#718096; font-size:0.7rem;">Historial, fidelización y seguimiento de clientes</small>
+                <h2><i class="fas fa-address-book"></i> CRM DE CLIENTES</h2>
+                <p class="omni-sub">Cartera, fidelización y campañas de correo</p>
             </div>
         </div>
-        <div id="crm-total-badge" style="background:#1a365d; color:white; border-radius:20px; padding:6px 16px; font-size:0.75rem; font-weight:900;">
-            Cargando...
+        <div class="omni-head-r" style="display:flex;gap:8px">
+            <button class="omni-btn omni-btn-primary" onclick="CRM.abrirCampana()"><i class="fas fa-paper-plane"></i> Nueva campaña</button>
         </div>
     </div>
 
-    <!-- Métricas rápidas -->
-    <div class="crm-metrics">
-        <div class="metric-card">
-            <div class="metric-icon" style="color:#1a365d;"><i class="fas fa-users"></i></div>
-            <div><p>Total Clientes</p><h3 id="sv-total">--</h3></div>
-        </div>
-        <div class="metric-card gold">
-            <div class="metric-icon" style="color:#c5a059;"><i class="fas fa-crown"></i></div>
-            <div><p>Clientes VIP</p><h3 id="sv-vip">--</h3></div>
-        </div>
-        <div class="metric-card blue">
-            <div class="metric-icon" style="color:#3498db;"><i class="fas fa-user-plus"></i></div>
-            <div><p>Nuevos este mes</p><h3 id="sv-nuevos">--</h3></div>
-        </div>
-        <div class="metric-card pink">
-            <div class="metric-icon" style="color:#e91e8c;"><i class="fas fa-birthday-cake"></i></div>
-            <div><p>Cumplea&ntilde;os esta semana</p><h3 id="sv-cumple">--</h3></div>
-        </div>
+    <div class="crm-stats">
+        <div class="crm-stat"><i class="fas fa-users"></i><div><span>Total clientes</span><b id="sv-total">–</b></div></div>
+        <div class="crm-stat gold"><i class="fas fa-crown"></i><div><span>Clientes VIP</span><b id="sv-vip">–</b></div></div>
+        <div class="crm-stat blue"><i class="fas fa-cart-shopping"></i><div><span>Compraron este mes</span><b id="sv-nuevos">–</b></div></div>
+        <div class="crm-stat pink"><i class="fas fa-cake-candles"></i><div><span>Cumpleaños esta semana</span><b id="sv-cumple">–</b></div></div>
     </div>
 
-    <!-- Barra herramientas: tabs + búsqueda -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; gap:15px; flex-wrap:wrap;">
-        <div style="display:flex; gap:8px;">
-            <button class="tab-crm active" id="tab-btn-clientes" onclick="CRM.switchTab('clientes', this)">
-                <i class="fas fa-list"></i> Clientes
-            </button>
-            <button class="tab-crm" id="tab-btn-cumpleanos" onclick="CRM.switchTab('cumpleanos', this)">
-                <i class="fas fa-birthday-cake"></i> Cumplea&ntilde;os pr&oacute;ximos
-            </button>
-        </div>
-        <div id="crm-searchbar" style="display:flex; align-items:center; gap:10px; background:#e0e0e4; padding:10px 18px; border-radius:12px; box-shadow:inset 3px 3px 6px #bebebe, inset -3px -3px 6px #ffffff; flex:1; max-width:420px;">
-            <i class="fas fa-search" style="color:#718096;"></i>
-            <input type="text" id="crm-buscar" placeholder="Buscar por nombre, cédula o teléfono..."
-                oninput="CRM.onSearch(this.value)"
-                style="border:none; outline:none; background:transparent; font-size:0.88rem; width:100%; color:#2d3748;">
-        </div>
+    <div class="crm-tabs">
+        <button class="crm-tab is-active" data-tab="clientes" onclick="CRM.tab('clientes')"><i class="fas fa-list"></i> Clientes</button>
+        <button class="crm-tab" data-tab="cumpleanos" onclick="CRM.tab('cumpleanos')"><i class="fas fa-cake-candles"></i> Cumpleaños</button>
+        <button class="crm-tab" data-tab="campanas" onclick="CRM.tab('campanas')"><i class="fas fa-paper-plane"></i> Campañas</button>
     </div>
 
-    <!-- Pestaña clientes -->
-    <div id="tab-clientes">
-        <div id="crm-grid" class="crm-grid">
-            <div class="crm-empty"><i class="fas fa-spinner fa-spin"></i> Cargando clientes...</div>
-        </div>
-    </div>
-
-    <!-- Pestaña cumpleaños -->
-    <div id="tab-cumpleanos" style="display:none;">
-        <div id="crm-cumple-lista" style="display:flex; flex-direction:column; gap:12px;">
-            <div class="crm-empty"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
-        </div>
-    </div>
-
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL PERFIL CLIENTE
-═══════════════════════════════════════════════════════════ -->
-<div id="crm-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;"
-    onclick="CRM.cerrarModal(event)">
-
-    <div class="crm-modal" onclick="event.stopPropagation()">
-
-        <!-- Cabecera modal -->
-        <div class="modal-top">
-            <div class="modal-avatar" id="m-avatar">A</div>
-            <div style="flex:1; min-width:0;">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <h3 id="m-nombre" style="margin:0; color:white; font-size:1.1rem; font-weight:900;"></h3>
-                    <span id="m-badge" class="clasif-badge"></span>
-                </div>
-                <p id="m-doc-tel" style="margin:5px 0 0; color:rgba(255,255,255,0.7); font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></p>
+    <!-- ═══════ CLIENTES ═══════ -->
+    <div id="tab-clientes" class="crm-panel">
+        <div class="omni-toolbar">
+            <div class="crm-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="text" id="crm-buscar" placeholder="Buscar por nombre, documento o correo..." oninput="CRM.onSearch(this.value)">
             </div>
-            <div style="display:flex; gap:8px; flex-shrink:0;">
-                <button class="btn-modal" onclick="CRM.toggleEdit()"><i class="fas fa-edit"></i> Editar</button>
-                <button class="btn-modal btn-modal-email" id="m-btn-email" style="display:none;" onclick="CRM.abrirEnvioEmail()">
-                    <i class="fas fa-envelope"></i> Correo
-                </button>
-                <button class="btn-modal btn-modal-close" onclick="CRM.cerrarModal()"><i class="fas fa-times"></i></button>
-            </div>
+            <select id="crm-filtro-clasif" class="omni-input" onchange="CRM.cargarClientes(CRM._q)">
+                <option value="">Todas las clasificaciones</option>
+                <option value="VIP">VIP</option>
+                <option value="FRECUENTE">Frecuente</option>
+                <option value="REGULAR">Regular</option>
+                <option value="NUEVO">Nuevo</option>
+                <option value="SIN_ACTIVIDAD">Sin actividad</option>
+            </select>
+            <span class="omni-count" id="crm-count">0 clientes</span>
         </div>
 
-        <!-- KPIs del cliente -->
-        <div id="m-kpis" class="modal-kpis"></div>
-
-        <!-- Formulario de edición (oculto por defecto) -->
-        <div id="m-edit-form" style="display:none; padding:18px 25px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
-            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
-                <div>
-                    <label class="field-lbl">Nombre Completo</label>
-                    <input type="text"  id="e-nombre"      class="field-input" placeholder="Nombre completo">
-                </div>
-                <div>
-                    <label class="field-lbl">Tel&eacute;fono</label>
-                    <input type="text"  id="e-telefono"    class="field-input" placeholder="0987654321">
-                </div>
-                <div>
-                    <label class="field-lbl">Correo</label>
-                    <input type="email" id="e-correo"      class="field-input" placeholder="correo@ejemplo.com">
-                </div>
-                <div>
-                    <label class="field-lbl">Procedencia</label>
-                    <input type="text"  id="e-procedencia" class="field-input" placeholder="Ciudad / País">
-                </div>
-                <div>
-                    <label class="field-lbl">Fecha de Nacimiento</label>
-                    <input type="date"  id="e-fnac"        class="field-input">
-                </div>
-                <div>
-                    <label class="field-lbl">Dirección</label>
-                    <input type="text"  id="e-direccion"   class="field-input" placeholder="Dirección del cliente">
-                </div>
-            </div>
-            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
-                <button class="btn-modal-action" onclick="CRM.cancelarEdit()">Cancelar</button>
-                <button class="btn-modal-action primary" onclick="CRM.guardarCliente()">
-                    <i class="fas fa-save"></i> Guardar cambios
-                </button>
-            </div>
+        <div id="crm-bulkbar" class="crm-bulkbar" hidden>
+            <span><b id="crm-sel-n">0</b> seleccionados</span>
+            <button class="omni-btn omni-btn-primary" onclick="CRM.abrirCampana(true)"><i class="fas fa-paper-plane"></i> Enviar campaña a la selección</button>
+            <button class="omni-btn omni-btn-ghost" onclick="CRM.limpiarSeleccion()">Limpiar</button>
         </div>
 
-        <!-- Tabs internas -->
-        <div style="display:flex; border-bottom:2px solid #f1f5f9;">
-            <button class="mtab active" id="mtab-historial" onclick="CRM.switchModalTab('historial', this)">
-                <i class="fas fa-history"></i> Historial de Estad&iacute;as
-            </button>
-            <button class="mtab" id="mtab-notas" onclick="CRM.switchModalTab('notas', this)">
-                <i class="fas fa-sticky-note"></i> Notas <span id="m-notas-count" style="font-weight:400; opacity:0.7;"></span>
-            </button>
-        </div>
-
-        <!-- Tab: Historial -->
-        <div id="mt-historial" style="overflow-x:auto; padding:15px 20px;">
-            <table style="width:100%; border-collapse:collapse; font-size:0.81rem;">
-                <thead>
-                    <tr style="background:#f8fafc;">
-                        <th class="th">Entrada</th>
-                        <th class="th">Salida</th>
-                        <th class="th">Hab.</th>
-                        <th class="th">Tipo</th>
-                        <th class="th">Modalidad</th>
-                        <th class="th">Total</th>
-                        <th class="th">Pago</th>
-                        <th class="th">Sede</th>
-                    </tr>
-                </thead>
-                <tbody id="m-historial-body">
-                    <tr><td colspan="8" style="text-align:center; padding:25px; color:#718096;">Sin estadías registradas.</td></tr>
-                </tbody>
+        <div class="omni-tablewrap">
+            <table class="omni-table crm-table">
+                <thead><tr>
+                    <th style="width:38px"><input type="checkbox" id="crm-check-all" onclick="CRM.toggleAll(this.checked)"></th>
+                    <th>Cliente</th>
+                    <th style="width:120px">Clasificación</th>
+                    <th style="width:90px" class="num">Compras</th>
+                    <th style="width:120px" class="num">Gastado</th>
+                    <th style="width:120px" class="num">Saldo</th>
+                    <th style="width:120px">Última compra</th>
+                    <th style="width:150px">Correo</th>
+                    <th style="width:96px"></th>
+                </tr></thead>
+                <tbody id="crm-body"><tr><td colspan="9" class="omni-empty">Cargando…</td></tr></tbody>
             </table>
         </div>
+    </div>
 
-        <!-- Tab: Notas -->
-        <div id="mt-notas" style="display:none;">
-            <div style="display:flex; gap:10px; padding:15px 20px; border-bottom:1px solid #f1f5f9; align-items:flex-start;">
-                <textarea id="nota-input" rows="2"
-                    placeholder="Agregar observación sobre este cliente (preferencias, incidentes, peticiones)..."
-                    style="flex:1; resize:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; font-size:0.85rem; font-family:'Segoe UI',sans-serif; outline:none;"></textarea>
-                <button class="btn-modal-action primary" onclick="CRM.agregarNota()" style="white-space:nowrap;">
-                    <i class="fas fa-plus"></i> Agregar
-                </button>
-            </div>
-            <div id="notas-lista" style="padding:15px 20px; display:flex; flex-direction:column; gap:10px; max-height:300px; overflow-y:auto;">
-                <p style="color:#718096; text-align:center; font-size:0.85rem;">Sin notas registradas.</p>
-            </div>
+    <!-- ═══════ CUMPLEAÑOS ═══════ -->
+    <div id="tab-cumpleanos" class="crm-panel" style="display:none">
+        <div id="crm-cumple" class="crm-cumple-grid"><div class="omni-empty">Cargando…</div></div>
+    </div>
+
+    <!-- ═══════ CAMPAÑAS ═══════ -->
+    <div id="tab-campanas" class="crm-panel" style="display:none">
+        <div class="omni-toolbar">
+            <button class="omni-btn omni-btn-primary" onclick="CRM.abrirCampana()"><i class="fas fa-plus"></i> Nueva campaña</button>
+            <button class="omni-btn omni-btn-ghost" onclick="CRM.cargarCampanas()"><i class="fas fa-rotate"></i> Actualizar</button>
+            <span class="omni-count">Envío seguro · pausa entre correos + descanso cada 25</span>
         </div>
-
+        <div id="crm-campanas" class="crm-camp-list"><div class="omni-empty">Cargando…</div></div>
     </div>
 </div>
 
-<!-- ═══════════════ ESTILOS ═══════════════ -->
+<!-- ═══════ MODAL PERFIL ═══════ -->
+<div id="crm-overlay" class="omni-modal-bg" style="display:none" onclick="CRM.cerrarModal(event)">
+    <div class="omni-modal crm-modal" onclick="event.stopPropagation()">
+        <div class="crm-modal-top">
+            <div class="crm-avatar" id="m-avatar">A</div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <h3 id="m-nombre" style="margin:0;color:#fff;font-size:1.05rem"></h3>
+                    <span id="m-badge" class="crm-badge"></span>
+                </div>
+                <p id="m-sub" style="margin:4px 0 0;color:rgba(255,255,255,.75);font-size:.76rem"></p>
+            </div>
+            <button class="crm-x" onclick="CRM.cerrarModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+
+        <div id="m-kpis" class="crm-kpis"></div>
+
+        <div class="crm-modal-body">
+            <div class="crm-mtabs">
+                <button class="crm-mtab is-active" data-mt="hist" onclick="CRM.mtab('hist')">Historial de compras</button>
+                <button class="crm-mtab" data-mt="notas" onclick="CRM.mtab('notas')">Notas <span id="m-notas-n"></span></button>
+                <button class="crm-mtab" data-mt="datos" onclick="CRM.mtab('datos')">Datos & consentimiento</button>
+            </div>
+
+            <div id="mt-hist" class="crm-mpane">
+                <div class="omni-tablewrap" style="max-height:38vh">
+                    <table class="omni-table"><thead><tr>
+                        <th>Nº</th><th>Fecha</th><th>Tipo</th><th class="num">Subtotal</th><th class="num">IVA</th><th class="num">Total</th><th>Estado</th>
+                    </tr></thead><tbody id="m-hist-body"></tbody></table>
+                </div>
+            </div>
+
+            <div id="mt-notas" class="crm-mpane" style="display:none">
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <input id="nota-input" class="omni-input" style="flex:1" placeholder="Agregar nota (preferencias, acuerdos, incidencias)…">
+                    <button class="omni-btn omni-btn-primary" onclick="CRM.agregarNota()"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="notas-lista"></div>
+            </div>
+
+            <div id="mt-datos" class="crm-mpane" style="display:none">
+                <div class="crm-form">
+                    <label>Nombre completo<input id="e-nombre" class="omni-input"></label>
+                    <label>Teléfono<input id="e-telefono" class="omni-input"></label>
+                    <label>Correo<input id="e-correo" type="email" class="omni-input"></label>
+                    <label>Procedencia<input id="e-procedencia" class="omni-input"></label>
+                    <label>Fecha de nacimiento<input id="e-fnac" type="date" class="omni-input"></label>
+                    <label>Dirección<input id="e-direccion" class="omni-input"></label>
+                </div>
+                <label class="crm-consent"><input type="checkbox" id="e-promo"> Acepta recibir promociones y comunicaciones por correo</label>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+                    <button class="omni-btn omni-btn-primary" onclick="CRM.guardarCliente()"><i class="fas fa-save"></i> Guardar</button>
+                    <button class="omni-btn" id="m-btn-email" onclick="CRM.correoIndividual()"><i class="fas fa-envelope"></i> Enviar correo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ MODAL CAMPAÑA ═══════ -->
+<div id="camp-overlay" class="omni-modal-bg" style="display:none" onclick="CRM.cerrarCampana(event)">
+    <div class="omni-modal crm-camp-modal" onclick="event.stopPropagation()">
+        <h3 style="margin:0 0 4px;color:#1a365d"><i class="fas fa-paper-plane" style="color:#2f7be6"></i> Nueva campaña de correo</h3>
+        <p class="omni-sub" style="margin:0 0 16px">Se envía uno por uno con pausas para no activar el anti-spam del proveedor.</p>
+
+        <div class="crm-camp-grid">
+            <div>
+                <h4>1 · Destinatarios</h4>
+                <label class="crm-radio"><input type="radio" name="cdest" value="todos" checked onchange="CRM.preview()"> Todos los clientes con correo y consentimiento</label>
+                <label class="crm-radio"><input type="radio" name="cdest" value="clasif" onchange="CRM.preview()"> Por clasificación</label>
+                <div id="cdest-clasif" class="crm-chips" hidden>
+                    <label><input type="checkbox" value="VIP" onchange="CRM.preview()"> VIP</label>
+                    <label><input type="checkbox" value="FRECUENTE" onchange="CRM.preview()"> Frecuente</label>
+                    <label><input type="checkbox" value="REGULAR" onchange="CRM.preview()"> Regular</label>
+                    <label><input type="checkbox" value="NUEVO" onchange="CRM.preview()"> Nuevo</label>
+                    <label><input type="checkbox" value="SIN_ACTIVIDAD" onchange="CRM.preview()"> Sin actividad</label>
+                </div>
+                <label class="crm-radio"><input type="radio" name="cdest" value="cumple" onchange="CRM.preview()"> Cumpleañeros de los próximos
+                    <input type="number" id="cdest-dias" value="7" min="1" max="60" style="width:56px" class="omni-input" oninput="CRM.preview()"> días</label>
+                <label class="crm-radio" id="cdest-sel-wrap"><input type="radio" name="cdest" value="seleccion" onchange="CRM.preview()"> Selección actual de la tabla (<span id="cdest-sel-n">0</span>)</label>
+
+                <div class="crm-preview" id="crm-preview">Calculando destinatarios…</div>
+            </div>
+
+            <div>
+                <h4>2 · Mensaje</h4>
+                <label>Nombre interno de la campaña
+                    <input id="c-nombre" class="omni-input" placeholder="Ej: Promo septiembre">
+                </label>
+                <label>Tipo de mensaje
+                    <select id="c-tipo" class="omni-input">
+                        <option value="OFERTA">✨ Oferta especial</option>
+                        <option value="CUMPLEANOS">🎂 Saludo de cumpleaños</option>
+                        <option value="BIENVENIDA">🔁 Gracias / vuelve pronto</option>
+                        <option value="PERSONALIZADO">✉️ Personalizado</option>
+                    </select>
+                </label>
+                <label>Asunto (opcional — si se deja vacío se usa uno estándar)
+                    <input id="c-asunto" class="omni-input" placeholder="Asunto del correo">
+                </label>
+                <div style="display:flex;gap:10px">
+                    <label style="flex:0 0 120px">Descuento %
+                        <input id="c-desc" type="number" min="1" max="99" class="omni-input" placeholder="—">
+                    </label>
+                    <label style="flex:1">Mensaje adicional
+                        <input id="c-msg" class="omni-input" placeholder="Texto libre que se añade al correo">
+                    </label>
+                </div>
+
+                <h4 style="margin-top:16px">3 · Ritmo de envío (anti-baneo)</h4>
+                <label>Pausa entre correos
+                    <select id="c-delay" class="omni-input">
+                        <option value="4">4 segundos (rápido)</option>
+                        <option value="6" selected>6 segundos (recomendado)</option>
+                        <option value="10">10 segundos (conservador)</option>
+                        <option value="15">15 segundos (muy seguro)</option>
+                    </select>
+                </label>
+                <p class="crm-hint"><i class="fas fa-shield-halved"></i> Además: descanso de 25 s cada 25 correos, tope de 400 por campaña, y el contenido nunca menciona compras ni montos.</p>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <button class="omni-btn omni-btn-ghost" onclick="CRM.cerrarCampana()">Cancelar</button>
+            <button class="omni-btn omni-btn-primary" id="c-enviar" onclick="CRM.lanzarCampana()"><i class="fas fa-paper-plane"></i> Lanzar campaña</button>
+        </div>
+    </div>
+</div>
+
 <style>
-.crm-wrapper {
-    padding: 25px 35px; background: #e0e0e4; min-height: 100%;
-    font-family: 'Segoe UI', sans-serif; overflow-y: auto; box-sizing: border-box;
-}
+    /* base omni */
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn:hover { background:#d3dae4; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; color:#2c3e50; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-count { margin-left:auto; font-size:.75rem; font-weight:800; color:#718096; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:60vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:11px 14px; text-align:left; font-size:.66rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:9px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .omni-table .num { text-align:right; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+    .omni-modal-bg { position:fixed; inset:0; background:rgba(15,25,40,.55); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px; }
+    .omni-modal { background:#fff; border-radius:16px; box-shadow:0 30px 60px rgba(0,0,0,.3); max-height:92vh; overflow:auto; }
 
-/* Métricas */
-.crm-metrics {
-    display: grid; grid-template-columns: repeat(4,1fr); gap: 15px; margin-bottom: 22px;
-}
-.metric-card {
-    background: #e0e0e4; border-radius: 15px; padding: 18px 20px;
-    box-shadow: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff;
-    display: flex; align-items: center; gap: 15px;
-}
-.metric-card.gold  { border-left: 4px solid #c5a059; }
-.metric-card.blue  { border-left: 4px solid #3498db; }
-.metric-card.pink  { border-left: 4px solid #e91e8c; }
-.metric-icon { font-size: 1.8rem; }
-.metric-card p { margin: 0; font-size: 0.72rem; font-weight: 700; color: #718096; text-transform: uppercase; }
-.metric-card h3 { margin: 4px 0 0; font-size: 1.9rem; font-weight: 900; color: #1a365d; }
+    /* stats */
+    .crm-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+    .crm-stat { background:#fff; border-radius:14px; padding:16px 18px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 14px rgba(30,50,80,.06); border-left:4px solid #2f7be6; }
+    .crm-stat.gold { border-left-color:#c5a059; } .crm-stat.blue { border-left-color:#3498db; } .crm-stat.pink { border-left-color:#e91e8c; }
+    .crm-stat i { font-size:1.5rem; color:#94a3b8; }
+    .crm-stat span { font-size:.68rem; font-weight:800; color:#718096; text-transform:uppercase; display:block; }
+    .crm-stat b { font-size:1.6rem; color:#1a365d; }
 
-/* Tabs */
-.tab-crm {
-    padding: 9px 18px; border: none; border-radius: 10px; cursor: pointer;
-    font-weight: 700; font-size: 0.83rem; background: #e0e0e4; color: #718096;
-    box-shadow: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff; transition: all 0.2s;
-}
-.tab-crm.active {
-    background: #1a365d; color: white;
-    box-shadow: inset 3px 3px 6px rgba(0,0,0,0.3);
-}
+    /* tabs */
+    .crm-tabs { display:flex; gap:8px; margin-bottom:14px; }
+    .crm-tab { border:none; background:#e2e7ee; color:#5a6b7d; font-weight:800; font-size:.8rem; padding:10px 18px; border-radius:11px 11px 0 0; cursor:pointer; display:flex; align-items:center; gap:7px; }
+    .crm-tab.is-active { background:#1a365d; color:#fff; }
 
-/* Grid de clientes */
-.crm-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(275px,1fr)); gap: 15px;
-}
-.crm-empty { text-align: center; padding: 40px; color: #718096; grid-column: 1/-1; font-size: 0.9rem; }
+    /* search */
+    .crm-search { display:flex; align-items:center; gap:9px; background:#fff; border:1px solid #d5dce5; border-radius:10px; padding:9px 14px; flex:1; max-width:420px; }
+    .crm-search i { color:#94a3b8; }
+    .crm-search input { border:none; outline:none; font-size:.85rem; width:100%; background:transparent; color:#2c3e50; }
 
-/* Card cliente */
-.cliente-card {
-    background: #e0e0e4; border-radius: 15px; padding: 18px; cursor: pointer;
-    box-shadow: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff;
-    border: 2px solid transparent; transition: all 0.25s;
-}
-.cliente-card:hover {
-    border-color: #c5a059; transform: translateY(-3px);
-    box-shadow: 8px 8px 16px #bebebe, -8px -8px 16px #ffffff;
-}
-.card-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-.card-avatar {
-    width: 44px; height: 44px; border-radius: 50%; background: #1a365d;
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 1.1rem; flex-shrink: 0;
-    box-shadow: 3px 3px 6px rgba(0,0,0,0.2);
-}
-.card-nombre { flex: 1; min-width: 0; }
-.card-nombre h4 { margin: 0; font-size: 0.88rem; font-weight: 800; color: #1a365d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-nombre p  { margin: 2px 0 0; font-size: 0.72rem; color: #718096; }
-.card-footer { display: flex; justify-content: space-between; }
-.c-stat { text-align: center; }
-.c-stat span   { display: block; font-size: 0.62rem; font-weight: 700; color: #718096; text-transform: uppercase; }
-.c-stat strong { font-size: 0.92rem; color: #1a365d; font-weight: 900; }
-.c-sep { width: 1px; background: #ccc; margin: 0 5px; }
+    /* bulk bar */
+    .crm-bulkbar { display:flex; align-items:center; gap:12px; background:#e7f2ff; border:1px solid #b6d4f5; border-radius:12px; padding:10px 16px; margin-bottom:12px; font-size:.85rem; }
+    .crm-bulkbar b { color:#1a5fc0; }
 
-/* Badges clasificación */
-.clasif-badge { font-size: 0.62rem; font-weight: 800; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-.badge-VIP          { background: #fef3cd; color: #856404; border: 1px solid #c5a059; }
-.badge-FRECUENTE    { background: #dbeafe; color: #1e40af; }
-.badge-REGULAR      { background: #dcfce7; color: #166534; }
-.badge-NUEVO        { background: #ede9fe; color: #6d28d9; }
-.badge-SIN_ACTIVIDAD{ background: #f1f5f9; color: #64748b; }
+    /* table */
+    .crm-table .crm-cli { font-weight:800; color:#1a365d; }
+    .crm-table .crm-cli small { display:block; font-weight:600; color:#94a3b8; font-size:.72rem; }
+    .crm-mail-ok { color:#1e8e4e; } .crm-mail-no { color:#c0392b; font-size:.72rem; }
+    .crm-badge { padding:3px 9px; border-radius:20px; font-size:.62rem; font-weight:900; text-transform:uppercase; letter-spacing:.4px; }
+    .b-VIP{background:#fef3cd;color:#8a6d1f;border:1px solid #d9b44a}.b-FRECUENTE{background:#dbeafe;color:#1e40af}
+    .b-REGULAR{background:#dcfce7;color:#166534}.b-NUEVO{background:#ede9fe;color:#6d28d9}.b-SIN_ACTIVIDAD{background:#f1f5f9;color:#64748b}
 
-/* Tarjetas cumpleaños */
-.cumple-card {
-    background: #e0e0e4; border-radius: 14px; padding: 16px 20px;
-    box-shadow: 5px 5px 10px #bebebe, -5px -5px 10px #ffffff;
-    display: flex; align-items: center; gap: 16px; cursor: pointer;
-    border-left: 4px solid #e91e8c; transition: all 0.2s;
-}
-.cumple-card:hover { transform: translateX(4px); }
-.cumple-dias { min-width: 58px; text-align: center; background: #fff0f6; border-radius: 10px; padding: 8px 6px; }
-.cumple-dias .num { font-size: 1.5rem; font-weight: 900; color: #e91e8c; display: block; line-height: 1; }
-.cumple-dias .lbl { font-size: 0.58rem; font-weight: 800; color: #e91e8c; text-transform: uppercase; }
-.cumple-info h4 { margin: 0; color: #1a365d; font-weight: 800; font-size: 0.95rem; }
-.cumple-info p  { margin: 3px 0 0; font-size: 0.78rem; color: #718096; }
-.cumple-hoy { background: #e91e8c; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; margin-left: auto; flex-shrink: 0; }
+    /* cumpleaños */
+    .crm-cumple-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+    .crm-cumple { background:#fff; border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 12px rgba(30,50,80,.06); border-left:4px solid #e91e8c; cursor:pointer; }
+    .crm-cumple .d { min-width:54px; text-align:center; background:#fff0f6; border-radius:10px; padding:7px 4px; }
+    .crm-cumple .d b { display:block; font-size:1.35rem; color:#e91e8c; line-height:1; }
+    .crm-cumple .d span { font-size:.55rem; font-weight:900; color:#e91e8c; text-transform:uppercase; }
+    .crm-cumple h4 { margin:0; color:#1a365d; font-size:.92rem; }
+    .crm-cumple p { margin:3px 0 0; font-size:.75rem; color:#718096; }
 
-/* Modal */
-.crm-modal {
-    background: white; border-radius: 18px; width: 100%; max-width: 880px;
-    max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.35);
-    display: flex; flex-direction: column;
-}
-.modal-top {
-    display: flex; align-items: center; gap: 15px; padding: 20px 25px;
-    background: #1a365d; border-radius: 18px 18px 0 0; flex-shrink: 0;
-}
-.modal-avatar {
-    width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2);
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 1.3rem; flex-shrink: 0;
-}
-.modal-kpis {
-    display: grid; grid-template-columns: repeat(4,1fr); flex-shrink: 0;
-    border-bottom: 2px solid #f1f5f9;
-}
-.kpi-cell { padding: 14px; text-align: center; border-right: 1px solid #f1f5f9; }
-.kpi-cell:last-child { border-right: none; }
-.kpi-cell span   { display: block; font-size: 0.68rem; font-weight: 700; color: #718096; text-transform: uppercase; margin-bottom: 4px; }
-.kpi-cell strong { font-size: 1.05rem; font-weight: 900; color: #1a365d; }
+    /* campañas list */
+    .crm-camp-list { display:flex; flex-direction:column; gap:12px; }
+    .crm-camp { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 4px 12px rgba(30,50,80,.06); }
+    .crm-camp-h { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+    .crm-camp-h b { color:#1a365d; font-size:.95rem; }
+    .crm-camp-h .meta { font-size:.72rem; color:#94a3b8; }
+    .crm-est { padding:3px 10px; border-radius:20px; font-size:.64rem; font-weight:900; text-transform:uppercase; }
+    .e-EN_PROCESO{background:#e0edff;color:#1e40af}.e-COMPLETADA{background:#e8f8ef;color:#1e8e4e}
+    .e-CANCELADA{background:#fdeceb;color:#c0392b}.e-ERROR{background:#fdeceb;color:#c0392b}
+    .crm-bar { height:10px; border-radius:6px; background:#eef1f5; overflow:hidden; }
+    .crm-bar > i { display:block; height:100%; background:linear-gradient(90deg,#2f7be6,#1a365d); transition:width .4s; }
+    .crm-camp-stats { display:flex; gap:16px; font-size:.75rem; color:#5a6b7d; margin-top:8px; }
+    .crm-camp-stats b { color:#1a365d; }
 
-/* Tabs modal */
-.mtab {
-    padding: 12px 22px; border: none; background: none; cursor: pointer;
-    font-weight: 700; font-size: 0.83rem; color: #718096;
-    border-bottom: 3px solid transparent; transition: all 0.2s;
-}
-.mtab.active { color: #1a365d; border-bottom-color: #1a365d; }
+    /* modal perfil */
+    .crm-modal { width:min(760px,96vw); }
+    .crm-modal-top { display:flex; align-items:center; gap:14px; padding:20px 24px; background:#1a365d; border-radius:16px 16px 0 0; }
+    .crm-avatar { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.2); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1.2rem; }
+    .crm-x { margin-left:auto; border:none; background:rgba(255,255,255,.15); color:#fff; width:32px; height:32px; border-radius:9px; cursor:pointer; }
+    .crm-kpis { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #eef1f5; }
+    .crm-kpis .k { padding:14px; text-align:center; border-right:1px solid #eef1f5; }
+    .crm-kpis .k:last-child { border-right:none; }
+    .crm-kpis .k span { display:block; font-size:.64rem; font-weight:800; color:#718096; text-transform:uppercase; }
+    .crm-kpis .k b { font-size:1.05rem; color:#1a365d; }
+    .crm-modal-body { padding:16px 24px 22px; }
+    .crm-mtabs { display:flex; gap:6px; border-bottom:2px solid #eef1f5; margin-bottom:14px; }
+    .crm-mtab { border:none; background:none; font-weight:800; font-size:.8rem; color:#94a3b8; padding:9px 14px; cursor:pointer; border-bottom:3px solid transparent; }
+    .crm-mtab.is-active { color:#1a365d; border-bottom-color:#1a365d; }
+    .crm-form { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .crm-form label { display:flex; flex-direction:column; gap:4px; font-size:.68rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; }
+    .crm-consent { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:.82rem; font-weight:700; color:#3a4a5d; }
+    .crm-note { background:#fffbeb; border-left:3px solid #c5a059; border-radius:8px; padding:9px 13px; font-size:.82rem; margin-bottom:8px; }
+    .crm-note small { display:block; color:#94a3b8; font-size:.7rem; margin-top:4px; }
 
-/* Table */
-.th { padding: 9px 12px; text-align: left; font-weight: 800; color: #718096; font-size: 0.7rem; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+    /* modal campaña */
+    .crm-camp-modal { width:min(880px,96vw); padding:26px; }
+    .crm-camp-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+    .crm-camp-grid h4 { margin:0 0 10px; font-size:.72rem; letter-spacing:1px; color:#5a6b7d; text-transform:uppercase; }
+    .crm-camp-grid label { display:block; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; margin-bottom:10px; }
+    .crm-camp-grid label .omni-input, .crm-camp-grid label select { display:block; width:100%; margin-top:4px; text-transform:none; font-weight:600; }
+    .crm-radio { display:flex; align-items:center; gap:8px; font-size:.82rem !important; font-weight:700 !important; text-transform:none !important; color:#3a4a5d; margin-bottom:9px !important; }
+    .crm-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px 24px; }
+    .crm-chips label { display:flex !important; align-items:center; gap:5px; font-size:.72rem !important; background:#eef1f5; padding:5px 10px; border-radius:20px; margin:0 !important; text-transform:none !important; }
+    .crm-preview { margin-top:12px; background:#e7f2ff; border:1px solid #b6d4f5; border-radius:10px; padding:12px 14px; font-size:.85rem; color:#1a5fc0; font-weight:700; }
+    .crm-hint { font-size:.72rem; color:#94a3b8; margin:8px 0 0; }
+    .crm-hint i { color:#1e8e4e; }
 
-/* Botones modal */
-.btn-modal {
-    padding: 7px 14px; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px;
-    cursor: pointer; font-weight: 700; font-size: 0.78rem;
-    background: rgba(255,255,255,0.12); color: white; transition: all 0.2s;
-    display: inline-flex; align-items: center; gap: 5px;
-}
-.btn-modal:hover { background: rgba(255,255,255,0.25); }
-.btn-modal-close { padding: 7px 10px; }
-.btn-modal-email { background: rgba(197,160,89,0.25); border-color: rgba(197,160,89,0.6); }
-.btn-modal-email:hover { background: rgba(197,160,89,0.4); }
-.btn-modal-action {
-    padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;
-    font-weight: 700; font-size: 0.8rem; background: white; color: #1a365d;
-    display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
-}
-.btn-modal-action.primary { background: #1a365d; color: white; border-color: #1a365d; }
-.btn-modal-action.primary:hover { background: #2a4a7f; }
-.field-lbl { display: block; font-size: 0.72rem; font-weight: 700; color: #718096; margin-bottom: 4px; text-transform: uppercase; }
-.field-input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; box-sizing: border-box; outline: none; font-family: 'Segoe UI', sans-serif; }
-.field-input:focus { border-color: #1a365d; }
-
-/* Notas */
-.nota-item { background: #fffbf0; border-left: 3px solid #c5a059; border-radius: 8px; padding: 10px 14px; }
-.nota-item p { margin: 0; font-size: 0.85rem; color: #2d3748; }
-.nota-meta { font-size: 0.71rem !important; color: #718096 !important; margin-top: 6px !important; }
-
-@media (max-width: 768px) {
-    .crm-wrapper { padding: 15px; }
-    .crm-metrics { grid-template-columns: repeat(2,1fr); }
-    .modal-kpis  { grid-template-columns: repeat(2,1fr); }
-}
+    @media (max-width:1000px){ .crm-stats{grid-template-columns:repeat(2,1fr)} .crm-camp-grid{grid-template-columns:1fr} .crm-form{grid-template-columns:1fr 1fr} }
 </style>
-</body>
-</html>

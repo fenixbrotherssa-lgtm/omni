@@ -262,36 +262,12 @@
             <button class="btn-neo btn-back" onclick="App.renderView('dashboard', 'viewport')" title="REGRESAR AL DASHBOARD">
                 <i class="fas fa-arrow-left"></i>
             </button>
-            <h2><i class="fas fa-building"></i> Gestión de Establecimientos</h2>
+            <h2><i class="fas fa-building"></i> Empresas</h2>
         </div>
         
         <button class="btn-neo" onclick="SedesModule.abrirModal()">
-            <i class="fas fa-plus-circle"></i> AGREGAR SEDE
+            <i class="fas fa-plus-circle"></i> AGREGAR EMPRESA
         </button>
-    </div>
-
-    <div class="tabla-container-neo bot-status-card">
-        <div class="bot-status-info">
-            <div class="bot-icon-box"><i class="fab fa-whatsapp"></i></div>
-            <div>
-                <h3 style="margin:0; color:var(--hotel-blue);">Bot de WhatsApp</h3>
-                <p style="margin:4px 0 0;" id="bot-estado-texto">
-                    <span class="bot-dot bot-dot-gris"></span> Consultando estado...
-                </p>
-                <small id="bot-db-texto" class="status-text"></small>
-            </div>
-        </div>
-        <button class="btn-neo" id="btn-reiniciar-bot" onclick="window.reiniciarBotWhatsapp()">
-            <i class="fas fa-rotate-right"></i> Reiniciar Bot
-        </button>
-    </div>
-
-    <div class="tabla-container-neo bot-qr-card" id="bot-qr-card" style="display:none;">
-        <img id="bot-qr-img" alt="Código QR de WhatsApp">
-        <div>
-            <h3 style="margin:0 0 6px; color:var(--hotel-blue);">Escanea el QR para conectar</h3>
-            <p style="margin:0; color:#64748b;">Abre WhatsApp en el celular del hotel → <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong>, y apunta la cámara aquí.</p>
-        </div>
     </div>
 
     <div class="tabla-container-neo">
@@ -300,7 +276,7 @@
                 <tr>
                     <th style="width: 80px;">Identidad</th>
                     <th>RUC / ID Fiscal</th>
-                    <th>Nombre de Sede</th>
+                    <th>Nombre de la empresa</th>
                     <th>Ubicación (Ciudad)</th>
                     <th>Estado</th>
                     <th style="text-align: center;">Acciones</th>
@@ -313,7 +289,7 @@
 
     <div id="modalSede" class="modal-neo hidden">
         <div class="modal-content-neo animate__animated animate__zoomIn">
-            <h3 id="modalSedeTitle" style="color: var(--hotel-blue); text-align:center; margin-bottom: 25px; letter-spacing: 2px; text-transform: uppercase;">Ficha de Establecimiento</h3>
+            <h3 id="modalSedeTitle" style="color: var(--hotel-blue); text-align:center; margin-bottom: 25px; letter-spacing: 2px; text-transform: uppercase;">Ficha de la empresa</h3>
             
             <form id="formSede">
                 <input type="hidden" id="sedeId" name="SedeID">

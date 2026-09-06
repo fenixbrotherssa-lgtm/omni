@@ -191,6 +191,7 @@ const NotasCreditoModule = {
                         <td>
                             <button class="btn-neo" style="padding:8px 12px;" title="Ver RIDE" onclick="NotasCreditoModule.verRIDE(${nc.NotaCreditoID})"><i class="fas fa-file-pdf"></i></button>
                             <button class="btn-neo" style="padding:8px 12px;" title="Enviar correo" onclick="NotasCreditoModule.enviarCorreo(${nc.NotaCreditoID})"><i class="fas fa-envelope"></i></button>
+                            ${nc.AsientoID ? `<button class="btn-neo" style="padding:8px 12px;color:#2e7d32" title="Ver asiento contable" onclick="NotasCreditoModule.verAsiento(${nc.AsientoID})"><i class="fas fa-book"></i></button>` : ''}
                         </td>
                     </tr>
                 `;
@@ -206,6 +207,44 @@ const NotasCreditoModule = {
             }
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'No se pudo generar el RIDE.', 'error');
+        }
+    },
+
+    async verAsiento(asientoId) {
+        try {
+            const res = await api.get(`/contabilidad/asientos/${asientoId}`);
+            const a = res.data.asiento;
+            const filas = (res.data.detalle || []).map(d => `
+                <tr>
+                    <td style="text-align:left">${d.Codigo} · ${d.CuentaNombre}</td>
+                    <td style="text-align:right">${parseFloat(d.Debe) ? '$' + parseFloat(d.Debe).toFixed(2) : ''}</td>
+                    <td style="text-align:right">${parseFloat(d.Haber) ? '$' + parseFloat(d.Haber).toFixed(2) : ''}</td>
+                </tr>`).join('');
+            Swal.fire({
+                title: `Asiento #${a.Numero} · ${a.Origen}`,
+                html: `
+                    <div style="font-size:13px;text-align:left;margin-bottom:6px">
+                        <b>Fecha:</b> ${new Date(a.Fecha).toLocaleDateString()} &nbsp;·&nbsp;
+                        <b>Estado:</b> ${a.Estado}<br>
+                        <b>Glosa:</b> ${a.Glosa || ''}
+                    </div>
+                    <table class="swal2-table" style="width:100%;font-size:13px;border-collapse:collapse">
+                        <thead><tr>
+                            <th style="text-align:left;border-bottom:1px solid #ccc">Cuenta</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Debe</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Haber</th>
+                        </tr></thead>
+                        <tbody>${filas}</tbody>
+                        <tfoot><tr style="font-weight:bold;border-top:2px solid #333">
+                            <td style="text-align:right">TOTAL</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalDebe).toFixed(2)}</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalHaber).toFixed(2)}</td>
+                        </tr></tfoot>
+                    </table>`,
+                width: 620
+            });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'No se pudo cargar el asiento.', 'error');
         }
     },
 

@@ -1,48 +1,37 @@
 {
-  "name": "masterhotel-frontend",
-  "version": "2.0.0",
-  "description": "Terminal de Escritorio MasterHotel",
+  "name": "omnicore-frontend",
+  "version": "4.5.0",
+  "description": "OMNI CORE — Terminal de escritorio (Electron)",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "node build.js"
   },
   "author": "Juan Jose Castillo Romero CasRodsoft",
   "license": "ISC",
   "build": {
-    "appId": "com.casrodsoft.masterhotel",
-    "productName": "MasterHotel",
+    "appId": "com.casrodsoft.omnicore",
+    "productName": "OMNI CORE",
     "directories": {
       "output": "dist"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "assets/icono.icns",
-      "category": "public.app-category.business"
     },
     "files": [
       "**/*",
       "!dist/*",
       "!dist_src/*",
-      "!node_modules/*",
       "!android/*",
       "!www/*",
       "!app-mobile.js",
       "!index-mobile.html",
       "!views-mobile/*",
       "!build_mobile.js",
+      "!build.js",
       "!capacitor.config.json",
       "!config.js",
       "!installer_frontend.iss",
-      "!Setup_MasterHotel_Cliente_*.exe",
-      "!.github/*"
+      "!Setup_*.exe",
+      "!.github/*",
+      "!estructura.html"
     ],
     "extraResources": [
       {
@@ -50,7 +39,41 @@
         "to": "config.js"
       }
     ],
-    "asar": true
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icono.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icono.ico",
+      "uninstallerIcon": "assets/icono.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OMNI CORE",
+      "artifactName": "OMNI-CORE-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "icon": "assets/icono.icns",
+      "category": "public.app-category.business",
+      "artifactName": "OMNI-CORE-${version}-mac.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://www.casrodsoft.com/downloads/",
+        "channel": "omnicore"
+      }
+    ]
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -58,12 +81,13 @@
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "axios": "^1.14.0",
+    "electron-pos-printer": "^1.4.0",
+    "electron-updater": "^6.3.9",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "electron": "^28.3.3",
     "electron-builder": "^24.13.3",
-    "electron-packager": "^17.1.2",
     "electron-reload": "^2.0.0-alpha.1",
     "javascript-obfuscator": "^5.4.2"
   }

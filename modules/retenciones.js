@@ -215,6 +215,7 @@ const RetencionesModule = {
                     <td>
                         <button class="btn-neo" style="padding:8px 12px;" title="Ver RIDE" onclick="RetencionesModule.verRIDE(${r.RetencionID})"><i class="fas fa-file-pdf"></i></button>
                         <button class="btn-neo" style="padding:8px 12px;" title="Enviar correo" onclick="RetencionesModule.enviarCorreo(${r.RetencionID})"><i class="fas fa-envelope"></i></button>
+                        ${r.AsientoID ? `<button class="btn-neo" style="padding:8px 12px;color:#2e7d32" title="Ver asiento contable" onclick="RetencionesModule.verAsiento(${r.AsientoID})"><i class="fas fa-book"></i></button>` : ''}
                     </td>
                 </tr>
             `;
@@ -230,6 +231,46 @@ const RetencionesModule = {
             }
         } catch (err) {
             Swal.fire('Error', err.response?.data?.error || 'No se pudo generar el RIDE.', 'error');
+        }
+    },
+
+    verAsientoCompra(compraId, asientoId) { return this.verAsiento(asientoId); },
+
+    async verAsiento(asientoId) {
+        try {
+            const res = await api.get(`/contabilidad/asientos/${asientoId}`);
+            const a = res.data.asiento;
+            const filas = (res.data.detalle || []).map(d => `
+                <tr>
+                    <td style="text-align:left">${d.Codigo} · ${d.CuentaNombre}</td>
+                    <td style="text-align:right">${parseFloat(d.Debe) ? '$' + parseFloat(d.Debe).toFixed(2) : ''}</td>
+                    <td style="text-align:right">${parseFloat(d.Haber) ? '$' + parseFloat(d.Haber).toFixed(2) : ''}</td>
+                </tr>`).join('');
+            Swal.fire({
+                title: `Asiento #${a.Numero} · ${a.Origen}`,
+                html: `
+                    <div style="font-size:13px;text-align:left;margin-bottom:6px">
+                        <b>Fecha:</b> ${new Date(a.Fecha).toLocaleDateString()} &nbsp;·&nbsp;
+                        <b>Estado:</b> ${a.Estado}<br>
+                        <b>Glosa:</b> ${a.Glosa || ''}
+                    </div>
+                    <table class="swal2-table" style="width:100%;font-size:13px;border-collapse:collapse">
+                        <thead><tr>
+                            <th style="text-align:left;border-bottom:1px solid #ccc">Cuenta</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Debe</th>
+                            <th style="text-align:right;border-bottom:1px solid #ccc">Haber</th>
+                        </tr></thead>
+                        <tbody>${filas}</tbody>
+                        <tfoot><tr style="font-weight:bold;border-top:2px solid #333">
+                            <td style="text-align:right">TOTAL</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalDebe).toFixed(2)}</td>
+                            <td style="text-align:right">$${parseFloat(a.TotalHaber).toFixed(2)}</td>
+                        </tr></tfoot>
+                    </table>`,
+                width: 620
+            });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'No se pudo cargar el asiento.', 'error');
         }
     },
 
@@ -331,14 +372,41 @@ const RetencionesModule = {
         document.getElementById('cpPagoCampos').style.display = activo ? 'flex' : 'none';
     },
 
+    _contraOptions() {
+        const p = this._planCompra || [];
+        if (!p.length) return '<option value="">(plan de cuentas no disponible)</option>';
+        const orden = { GASTO: 0, ACTIVO: 1, PASIVO: 2, INGRESO: 3, PATRIMONIO: 4, ORDEN: 5 };
+        const tipos = [...new Set(p.map(c => c.Tipo))].sort((a, b) => (orden[a] ?? 9) - (orden[b] ?? 9));
+        return '<option value="">— clasificar después —</option>' + tipos.map(t =>
+            `<optgroup label="${t}">` + p.filter(c => c.Tipo === t).map(c => `<option value="${c.CuentaID}">${c.Codigo} · ${c.Nombre}</option>`).join('') + '</optgroup>'
+        ).join('');
+    },
+
     async cargarMetodosYRubrosCompra() {
         try {
-            const [resMetodos, resRubros] = await Promise.all([
-                api.get('/reportes/metodos-pago'),
-                api.get('/reportes/rubros')
+            const [resMetodos, resRubros, resPlan, resCC, resPR] = await Promise.all([
+                api.get('/catalogos/metodos-pago'),
+                api.get('/catalogos/rubros'),
+                api.get(`/contabilidad/plan?sedeId=${this.getSedeId()}&soloMovimiento=1`),
+                api.get(`/contabilidad/centros-costo?sedeId=${this.getSedeId()}`).catch(() => ({ data: {} })),
+                api.get(`/contabilidad/proyectos?sedeId=${this.getSedeId()}`).catch(() => ({ data: {} }))
             ]);
             this.metodosPagoCache = resMetodos.data || [];
             this.rubrosEgresoCache = (resRubros.data || []).filter(r => r.Tipo === 'Egreso');
+            this._planCompra = (resPlan.data && resPlan.data.cuentas) || [];
+            const selContra = document.getElementById('cpContra');
+            if (selContra) selContra.innerHTML = this._contraOptions();
+
+            const centros = (resCC.data && resCC.data.centros) || [];
+            const proys = (resPR.data && resPR.data.proyectos) || [];
+            this._centrosCache = centros; this._proysCache = proys;
+            if (centros.length || proys.length) {
+                const w = document.getElementById('cpDimWrap'); if (w) w.style.display = 'grid';
+                const sc = document.getElementById('cpCentro');
+                if (sc) sc.innerHTML = '<option value="">— ninguno —</option>' + centros.map(c => `<option value="${c.CentroCostoID}">${c.Codigo} · ${c.Nombre}</option>`).join('');
+                const sp = document.getElementById('cpProyecto');
+                if (sp) sp.innerHTML = '<option value="">— ninguno —</option>' + proys.map(p => `<option value="${p.ProyectoID}">${p.Codigo} · ${p.Nombre}</option>`).join('');
+            }
 
             const selMetodo = document.getElementById('cpMetodoPago');
             if (selMetodo) {
@@ -379,7 +447,7 @@ const RetencionesModule = {
                     <td>${c.Establecimiento}-${c.PuntoEmision}-${c.Secuencial}</td>
                     <td>${this.formatFecha ? this.formatFecha(c.FechaEmision) : String(c.FechaEmision).substring(0,10)}</td>
                     <td>$${parseFloat(c.Total).toFixed(2)}</td>
-                    <td>${badgeAts}</td>
+                    <td>${badgeAts}${!c.AsientoID ? `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#d35400;background:#fff3e0;" title="Falta clasificar la cuenta contable" onclick="RetencionesModule.clasificarCompra(${c.CompraID})"><i class="fas fa-scale-unbalanced"></i> Clasificar</button>` : `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#2e7d32;" title="Ver asiento contable" onclick="RetencionesModule.verAsientoCompra(${c.CompraID}, ${c.AsientoID})"><i class="fas fa-book"></i> Ver asiento</button>`}</td>
                     <td>${pago}</td>
                     <td><button class="btn-neo btn-danger" style="padding:8px 12px;" onclick="RetencionesModule.eliminarCompra(${c.CompraID})"><i class="fas fa-trash"></i></button></td>
                 </tr>
@@ -388,6 +456,34 @@ const RetencionesModule = {
         } catch (err) {
             console.error('Error cargando compras:', err);
         }
+    },
+
+    async clasificarCompra(compraId) {
+        if (!this._planCompra || !this._planCompra.length) await this.cargarMetodosYRubrosCompra();
+        const centros = this._centrosCache || [];
+        const proys = this._proysCache || [];
+        const hayDim = centros.length || proys.length;
+        const ccOpts = '<option value="">— sin centro de costo —</option>' + centros.map(c => `<option value="${c.CentroCostoID}">${c.Codigo} · ${c.Nombre}</option>`).join('');
+        const prOpts = '<option value="">— sin proyecto —</option>' + proys.map(p => `<option value="${p.ProyectoID}">${p.Codigo} · ${p.Nombre}</option>`).join('');
+        const r = await Swal.fire({
+            title: 'Clasificar compra',
+            html: `<div style="text-align:left;font-size:.85rem;color:#718096">¿Qué se compró? Se genera el asiento (DEBE la cuenta que elijas + IVA / HABER retenciones + Proveedores o Caja).</div>
+                   <select id="swc" class="swal2-input" style="display:block">${this._contraOptions()}</select>
+                   ${hayDim ? `<select id="swcc" class="swal2-input" style="display:block">${ccOpts}</select>
+                   <select id="swpr" class="swal2-input" style="display:block">${prOpts}</select>` : ''}`,
+            showCancelButton: true, confirmButtonText: 'Generar asiento', cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const v = document.getElementById('swc').value;
+                if (!v) { Swal.showValidationMessage('Elige una cuenta'); return false; }
+                return { cuenta: v, cc: document.getElementById('swcc')?.value || null, pr: document.getElementById('swpr')?.value || null };
+            }
+        });
+        if (!r.isConfirmed) return;
+        try {
+            await api.post(`/compras/${compraId}/clasificar`, { ContrapartidaCuentaID: r.value.cuenta, CentroCostoID: r.value.cc, ProyectoID: r.value.pr });
+            window.Toast.fire({ icon: 'success', title: 'Asiento generado' });
+            this.cargarCompras();
+        } catch (e) { Swal.fire('Error', e.response?.data?.error || 'No se pudo clasificar.', 'error'); }
     },
 
     async marcarCompraPagada(compraId) {
@@ -459,12 +555,19 @@ const RetencionesModule = {
             SustentoTributario: document.getElementById('cpSustento').value,
             RegistrarPago: registrarPago,
             MetodoPagoID: registrarPago ? parseInt(document.getElementById('cpMetodoPago').value) : null,
-            RubroID: registrarPago ? parseInt(document.getElementById('cpRubro').value) : null
+            RubroID: registrarPago ? parseInt(document.getElementById('cpRubro').value) : null,
+            ContrapartidaCuentaID: document.getElementById('cpContra')?.value || null,
+            CentroCostoID: document.getElementById('cpCentro')?.value || null,
+            ProyectoID: document.getElementById('cpProyecto')?.value || null,
+            DiasCredito: 30
         };
 
         try {
-            await api.post('/compras', payload);
-            window.Toast.fire({ icon: 'success', title: 'Compra registrada' });
+            const r = await api.post('/compras', payload);
+            window.Toast.fire({
+                icon: r.data.asientoGenerado ? 'success' : 'info',
+                title: r.data.asientoGenerado ? 'Compra registrada y contabilizada' : 'Compra registrada — falta clasificar la cuenta'
+            });
             ['cpProvSelect','cpProvDocumento','cpProvRazonSocial','cpNumeroComprobante','cpAutorizacion','cpFechaEmision','cpBaseImponible','cpBaseImponible0','cpIva','cpRetIva','cpRetRenta']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
             document.getElementById('cpTotal').textContent = '0.00';

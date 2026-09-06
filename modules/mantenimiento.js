@@ -1,16 +1,44 @@
 const api = require('./api');
 
+const AREAS_DEFAULT = [
+    'Instalaciones', 'Equipos / Maquinaria', 'Tecnología / Sistemas',
+    'Mobiliario', 'Vehículos', 'Bodega / Almacén',
+    'Atención al cliente', 'Servicios (agua/luz/internet)', 'Otro'
+];
+
 const MantenimientoModule = {
     _sedeId: null,
     _isAdmin: false,
     _editId: null,
+    _areas: AREAS_DEFAULT.slice(),
 
     async init() {
         window.MantenimientoModule = this;
         const user = JSON.parse(localStorage.getItem('user'));
         this._isAdmin = user && parseInt(user.RolID) === 1;
         this._sedeId  = localStorage.getItem('currentSedeId') || user?.SedeID || 1;
+        await this.cargarAreas();
         await Promise.all([this.cargarOrdenes(), this.cargarStats()]);
+    },
+
+    async cargarAreas() {
+        try {
+            const r = await api.get(`/sedeconfig?sedeId=${this._sedeId}`);
+            const raw = (r.data.config || {}).MANTENIMIENTO_AREAS || '';
+            const lista = raw.split(',').map(s => s.trim()).filter(Boolean);
+            this._areas = lista.length ? lista : AREAS_DEFAULT.slice();
+        } catch (_) {
+            this._areas = AREAS_DEFAULT.slice();
+        }
+        this._poblarSelectsArea();
+    },
+
+    _poblarSelectsArea() {
+        const opts = this._areas.map(a => `<option value="${a}">${a}</option>`).join('');
+        const filtro = document.getElementById('mt-filtro-area');
+        if (filtro) filtro.innerHTML = `<option value="">Todas las áreas</option>${opts}`;
+        const form = document.getElementById('mt-form-area');
+        if (form) form.innerHTML = opts;
     },
 
     async cargarStats() {
@@ -58,11 +86,22 @@ const MantenimientoModule = {
 
         const estadoBadge = { PENDIENTE:'b-pendiente', EN_PROCESO:'b-en_proceso', RESUELTO:'b-resuelto' };
         const prioBadge   = { URGENTE:'b-urgente', ALTA:'b-alta', MEDIA:'b-media', BAJA:'b-baja' };
-        const areaIcon    = { HABITACION:'fa-bed', COCINA:'fa-fire-burner', RESTAURANTE:'fa-utensils',
-                              PARQUEADERO:'fa-parking', EQUIPOS:'fa-plug', GENERAL:'fa-building' };
+        const iconoDeArea = (a='') => {
+            const t = a.toLowerCase();
+            if (/veh|auto|camion|flota/.test(t))              return 'fa-truck';
+            if (/tec|sistema|software|red|servidor|it\b/.test(t)) return 'fa-network-wired';
+            if (/equipo|maquin|herramient/.test(t))           return 'fa-gears';
+            if (/mobil|mueble/.test(t))                       return 'fa-chair';
+            if (/bodega|almac|inventar/.test(t))              return 'fa-boxes-stacked';
+            if (/client|atenc|local|tienda/.test(t))          return 'fa-store';
+            if (/servic|agua|luz|internet|energ/.test(t))     return 'fa-plug';
+            if (/instalac|edific|infra/.test(t))              return 'fa-building';
+            return 'fa-tools';
+        };
 
+        window._mtOrdenes = ordenes;
         const filas = ordenes.map(o => {
-            const icon = areaIcon[o.Area] || 'fa-tools';
+            const icon = iconoDeArea(o.Area);
             const acciones = this._isAdmin
                 ? `<button class="btn-neo btn-sm btn-prim" onclick="MantenimientoModule.abrirModalAdmin(${o.MantenimientoID})" title="Gestionar">
                        <i class="fas fa-cog"></i>
@@ -92,7 +131,9 @@ const MantenimientoModule = {
     },
 
     abrirModalCrear() {
-        document.getElementById('mt-form-area').value = 'HABITACION';
+        this._poblarSelectsArea();
+        const fa = document.getElementById('mt-form-area');
+        if (fa && this._areas.length) fa.value = this._areas[0];
         document.getElementById('mt-form-ref').value  = '';
         document.getElementById('mt-form-desc').value = '';
         document.getElementById('mt-form-prio').value = 'MEDIA';

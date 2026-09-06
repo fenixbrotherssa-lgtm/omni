@@ -19,11 +19,13 @@ function resolverBaseURL() {
     if (window.AppConfig && window.AppConfig.apiUrl) {
         return window.AppConfig.apiUrl;
     }
-    // Respaldos por si api.js se cargara fuera del flujo normal de arranque
     if (window.axios && window.axios.defaults && window.axios.defaults.baseURL) {
         return window.axios.defaults.baseURL;
     }
-    return 'http://localhost:4000/api';
+    // Último recurso — SOLO si falló toda la resolución de config.
+    // La URL real se define en resources/config.js (SERVER_ADDRESS/PORT) y la
+    // inyecta main.js. Este literal existe en UN solo lugar a propósito.
+    return (window.AppConfig && window.AppConfig.fallbackApiUrl) || 'http://localhost:3636/api';
 }
 
 /**
@@ -121,8 +123,44 @@ api.interceptors.response.use(
             console.error("Fallo de red: El servidor no responde.");
         }
 
+        const st = error.response?.status;
+        const data = error.response?.data || {};
+
+        // 402 fuera del login = la suscripción SaaS de la empresa venció
+        // mientras había sesión (lo detecta /auth/refresh). Cierra sesión
+        // y manda al login, donde se ve el mensaje al reintentar.
+        if (st === 402 && !config?.url?.includes('/auth/login')) {
+            try {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Suscripción vencida', data.message || 'La suscripción de esta empresa venció. Contacta a tu proveedor.', 'warning');
+                }
+            } catch (_) {}
+            localStorage.clear();
+            setTimeout(() => window.location.reload(), 2500);
+        }
+
+        // 503 = la base de datos no responde (en Local suele ser licencia
+        // vencida gestionada por el proveedor a nivel de SQL Server).
+        if (st === 503 && (data.error === 'BASE_INACCESIBLE' || data.error === 'BASE_NO_DISPONIBLE')) {
+            try {
+                if (typeof Swal !== 'undefined' && !window.__omniDbAviso) {
+                    window.__omniDbAviso = true;
+                    Swal.fire({
+                        title: data.error === 'BASE_INACCESIBLE' ? 'Sin acceso a la base de datos' : 'Base de datos no disponible',
+                        text: data.mensaje || 'No se pudo acceder a la base de datos.',
+                        icon: 'error'
+                    }).then(() => { window.__omniDbAviso = false; });
+                }
+            } catch (_) {}
+        }
+
         return Promise.reject(error);
     }
 );
+
+// Helpers de URL — ÚNICA fuente para el resto de módulos.
+// Nadie más debe escribir 'http://localhost...' ni construir la base a mano.
+api.base = resolverBaseURL;                                  // .../api
+api.origin = () => resolverBaseURL().replace(/\/api\/?$/, ''); // sin /api (para /uploads, descargas)
 
 module.exports = api;

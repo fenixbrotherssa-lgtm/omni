@@ -1,7 +1,7 @@
 const CONFIG = {
-    ENV: 'production', 
-    SERVER_ADDRESS: 'concordia.hotelgalemsecuador.com',
-    PORT: 4000, // Se mantiene referencial, el getApiUrl lo omitir� al ser dominio
+    ENV: 'development',
+    SERVER_ADDRESS: 'omnicore.casrodsoft.com',
+    PORT: 3636, // OMNI CORE backend
 
     getApiUrl() {
         const isDomain = this.SERVER_ADDRESS.includes('.') && !/[0-9]$/.test(this.SERVER_ADDRESS);

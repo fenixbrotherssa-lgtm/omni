@@ -1,0 +1,58 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-layer-group"></i> LIBRO MAYOR</h2>
+                <p class="omni-sub">Movimientos y saldo acumulado por cuenta</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="omni-toolbar">
+        <label class="omni-fld" style="min-width:320px;flex:1">Cuenta
+            <select id="lm-cuenta" class="omni-input"><option value="">Selecciona una cuenta de movimiento...</option></select>
+        </label>
+        <label class="omni-fld">Desde <input type="date" id="lm-desde" class="omni-input"></label>
+        <label class="omni-fld">Hasta <input type="date" id="lm-hasta" class="omni-input"></label>
+        <button class="omni-btn omni-btn-primary" onclick="LibromayorModule.cargar()"><i class="fas fa-magnifying-glass"></i> Consultar</button>
+    </div>
+
+    <div id="lm-cab" class="lm-cab" style="display:none;"></div>
+    <div class="omni-tablewrap">
+        <table class="omni-table">
+            <thead><tr>
+                <th style="width:100px">Fecha</th><th style="width:70px">#</th><th>Detalle</th>
+                <th style="width:130px" class="num">Debe</th><th style="width:130px" class="num">Haber</th><th style="width:150px" class="num">Saldo</th>
+            </tr></thead>
+            <tbody id="lm-body"><tr><td colspan="6" class="omni-empty">Selecciona una cuenta y consulta.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; margin-bottom:22px; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-toolbar { display:flex; gap:12px; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap; }
+    .omni-fld { display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; color:#2c3e50; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .lm-cab { background:#fff; border-radius:12px; padding:16px 20px; margin-bottom:14px; box-shadow:0 3px 12px rgba(30,50,80,.07); display:flex; gap:30px; flex-wrap:wrap; }
+    .lm-cab div span { display:block; font-size:.68rem; color:#718096; font-weight:800; text-transform:uppercase; }
+    .lm-cab div b { font-size:1.05rem; color:#1a365d; font-family:'Consolas',monospace; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:62vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:12px 14px; text-align:left; font-size:.68rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:8px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .num { text-align:right; font-family:'Consolas',monospace; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+    .lm-ini td { background:#f6f9fd; font-weight:800; }
+    .lm-fin td { border-top:2px solid #1a365d; font-weight:900; background:#eef4fc; }
+</style>

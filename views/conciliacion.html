@@ -1,0 +1,52 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-scale-balanced"></i> CONCILIACIÓN BANCARIA</h2>
+                <p class="omni-sub">Marca los movimientos de la cuenta Bancos que ya figuran en el extracto</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="omni-toolbar">
+        <label class="omni-fld">Desde <input type="date" id="cn-desde" class="omni-input"></label>
+        <label class="omni-fld">Hasta <input type="date" id="cn-hasta" class="omni-input"></label>
+        <label class="omni-fld"><input type="checkbox" id="cn-pend"> Solo pendientes</label>
+        <button class="omni-btn omni-btn-primary" onclick="ConciliacionModule.cargar()"><i class="fas fa-magnifying-glass"></i> Ver</button>
+        <span class="omni-count" id="cn-tot">—</span>
+    </div>
+
+    <div class="omni-tablewrap">
+        <table class="omni-table">
+            <thead><tr>
+                <th style="width:44px"></th><th style="width:60px">Nº</th><th style="width:100px">Fecha</th>
+                <th>Glosa</th><th style="width:110px" class="num">Ingreso</th><th style="width:110px" class="num">Egreso</th>
+                <th style="width:150px">Ref. extracto</th>
+            </tr></thead>
+            <tbody id="cn-body"><tr><td colspan="7" class="omni-empty">Elige el rango y pulsa Ver.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; }
+    .omni-toolbar { display:flex; gap:12px; align-items:flex-end; margin-bottom:14px; flex-wrap:wrap; }
+    .omni-fld { display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; }
+    .omni-input { padding:9px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; }
+    .omni-count { margin-left:auto; font-size:.8rem; font-weight:800; color:#1a365d; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:64vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:11px 14px; text-align:left; font-size:.66rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:8px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-table .num { text-align:right; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+    tr.cn-ok { background:#f0fdf4; }
+</style>

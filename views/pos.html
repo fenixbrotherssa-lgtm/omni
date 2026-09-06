@@ -1,0 +1,151 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-cart-shopping"></i> PUNTO DE VENTA</h2>
+                <p class="omni-sub">Ventas de bienes y servicios · genera cuenta por cobrar y asiento contable</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="pos-grid">
+        <!-- Columna izquierda: buscador + carrito -->
+        <div class="pos-left">
+            <div class="pos-search">
+                <input type="text" id="pos-q" class="omni-input" placeholder="Buscar producto por nombre o código...">
+                <button class="omni-btn omni-btn-ghost" onclick="PosModule.addLibre()"><i class="fas fa-pen"></i> Ítem libre</button>
+            </div>
+            <div id="pos-result" class="pos-result" style="display:none;"></div>
+
+            <label class="pos-incluye"><input type="checkbox" id="pos-incluye-iva" checked>
+                Los precios ingresados <b>ya incluyen IVA</b> (PVP) — se desglosa automáticamente
+            </label>
+
+            <table class="omni-table pos-cart">
+                <thead><tr><th>Descripción</th><th style="width:104px">Cant.</th><th style="width:126px">Precio</th><th style="width:104px">Impuesto</th><th style="width:120px" class="num">Total</th><th style="width:38px"></th></tr></thead>
+                <tbody id="pos-items"><tr><td colspan="6" class="omni-empty">Agrega productos o un ítem libre.</td></tr></tbody>
+            </table>
+        </div>
+
+        <!-- Columna derecha: cobro + totales -->
+        <div class="pos-right">
+            <h4>Datos de la venta</h4>
+
+            <label class="omni-fld">Cliente
+                <div class="pos-cli-box">
+                    <input type="text" id="pos-cli" class="omni-input" placeholder="CONSUMIDOR FINAL" autocomplete="off">
+                    <button type="button" class="omni-btn omni-btn-ghost" title="Buscar por cédula/RUC o nombre" onclick="PosModule.buscarCliente()"><i class="fas fa-magnifying-glass"></i></button>
+                    <button type="button" class="omni-btn omni-btn-ghost" title="Consumidor final" onclick="PosModule.limpiarCliente()"><i class="fas fa-eraser"></i></button>
+                </div>
+            </label>
+            <div id="pos-cli-result" class="pos-result" style="display:none;"></div>
+            <label class="omni-fld">Identificación (cédula / RUC) <input type="text" id="pos-doc" class="omni-input" placeholder="9999999999999" autocomplete="off"></label>
+
+            <label class="omni-fld">Condición
+                <select id="pos-tipo" class="omni-input" onchange="PosModule.toggleCredito()">
+                    <option value="CONTADO">Contado</option>
+                    <option value="CREDITO">Crédito</option>
+                </select>
+            </label>
+            <label class="omni-fld" id="pos-mp-wrap">Método de pago
+                <select id="pos-mp" class="omni-input" onchange="PosModule.onMetodo()">
+                    <option value="1">Efectivo</option><option value="2">Transferencia</option>
+                    <option value="3">Tarjeta Débito</option><option value="4">Tarjeta Crédito</option>
+                    <option value="5">Deuna / QR</option>
+                </select>
+            </label>
+
+            <div id="pos-pago-extra" style="display:none;">
+                <button type="button" class="omni-btn omni-btn-primary" id="pos-qr-btn" style="width:100%;justify-content:center;margin-bottom:8px;display:none;" onclick="PosModule.generarQrDeuna()">
+                    <i class="fas fa-qrcode"></i> Generar QR Deuna
+                </button>
+                <button type="button" class="omni-btn" id="pos-pasarela-btn" style="width:100%;justify-content:center;margin-bottom:8px;display:none;background:#1a7a4a;color:#fff;" onclick="PosModule.cobrarConPasarela()">
+                    <i class="fas fa-credit-card"></i> Cobrar con pasarela
+                </button>
+                <div id="pos-qr-ok" class="pos-qr-ok" style="display:none;"><i class="fas fa-circle-check"></i> Pago confirmado — <span id="pos-qr-ref"></span></div>
+                <label class="omni-fld">Referencia / N.º de transacción <input type="text" id="pos-ref" class="omni-input" placeholder="Nº de comprobante"></label>
+                <label class="omni-fld">Comprobante (foto o PDF)
+                    <input type="file" id="pos-voucher" class="omni-input" accept="image/*,application/pdf">
+                </label>
+            </div>
+
+            <label class="omni-fld" id="pos-dias-wrap" style="display:none;">Días de crédito <input type="number" id="pos-dias" class="omni-input" value="30" min="1"></label>
+            <label class="omni-fld">Observación <input type="text" id="pos-obs" class="omni-input" placeholder="opcional"></label>
+
+            <div id="pos-dim-wrap" style="display:none; gap:10px; grid-template-columns:1fr 1fr;">
+                <label class="omni-fld">Centro de costo <select id="pos-centro" class="omni-input"><option value="">— ninguno —</option></select></label>
+                <label class="omni-fld">Proyecto <select id="pos-proyecto" class="omni-input"><option value="">— ninguno —</option></select></label>
+            </div>
+
+            <div class="pos-tot">
+                <div><span>Subtotal gravado</span><b id="pos-base15">0.00</b></div>
+                <div id="pos-base0-row" style="display:none;"><span>Subtotal 0%</span><b id="pos-base0">0.00</b></div>
+                <div><span id="pos-iva-lbl">IVA</span><b id="pos-iva">0.00</b></div>
+                <div class="pos-total"><span>TOTAL A PAGAR</span><b id="pos-total">0.00</b></div>
+            </div>
+            <button class="omni-btn omni-btn-primary" style="width:100%;justify-content:center" id="pos-reg" onclick="PosModule.registrar()"><i class="fas fa-check"></i> REGISTRAR VENTA</button>
+        </div>
+    </div>
+
+    <h4 class="pos-recent-h">Ventas recientes</h4>
+    <div class="omni-tablewrap">
+        <table class="omni-table">
+            <thead><tr><th style="width:70px">#</th><th style="width:100px">Fecha</th><th>Cliente</th><th style="width:90px">Cond.</th><th style="width:120px" class="num">Total</th><th style="width:100px">Estado</th><th style="width:90px"></th></tr></thead>
+            <tbody id="pos-recent"><tr><td colspan="7" class="omni-empty">—</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:28px 36px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; margin-bottom:20px; }
+    .omni-head h2 { margin:0; font-size:1.3rem; font-weight:900; letter-spacing:1.5px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:10px; padding:10px 16px; font-weight:800; font-size:.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-primary:disabled { background:#b9c6d6; cursor:not-allowed; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-btn-danger { background:#fdeceb; color:#e74c3c; }
+    .omni-input { padding:9px 11px; border:1px solid #d5dce5; border-radius:9px; font-size:.82rem; background:#fff; outline:none; width:100%; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-fld { display:flex; flex-direction:column; gap:4px; font-size:.68rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; margin-bottom:10px; }
+    .omni-empty { text-align:center; padding:22px; color:#a0aab8; }
+    .num { text-align:right; font-family:'Consolas',monospace; }
+    .pos-grid { display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+    @media (max-width:1100px){ .pos-grid { grid-template-columns:1fr; } }
+    .pos-left, .pos-right { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); padding:18px; }
+    .pos-right h4, .pos-recent-h { margin:0 0 12px; color:#1a365d; font-size:.85rem; font-weight:900; letter-spacing:1px; }
+    .pos-recent-h { margin:26px 0 12px; }
+    .pos-search { display:flex; gap:10px; margin-bottom:10px; }
+    .pos-incluye { display:flex; align-items:center; gap:8px; font-size:.74rem; font-weight:600; color:#5a6b7d; margin-bottom:10px; cursor:pointer; }
+    .pos-incluye b { color:#1a365d; }
+    .iva-sel { padding:6px 6px !important; font-size:.72rem !important; font-weight:800; color:#1a365d; }
+    .iva-sel.iva0 { color:#1e8e4e; background:#eafaf0; border-color:#bfe6cf; }
+    .pos-cli-box { display:flex; gap:6px; }
+    .pos-cli-box .omni-input { flex:1; }
+    .pos-cli-box .omni-btn { padding:8px 11px; }
+    #pos-cli-result { position:relative; margin-top:-4px; margin-bottom:10px; max-height:180px; }
+    .pos-qr-ok { background:#eafaf0; color:#1e8e4e; border:1px solid #bfe6cf; border-radius:8px; padding:8px 10px; font-size:.75rem; font-weight:800; margin-bottom:8px; }
+    #pos-voucher { padding:6px !important; font-size:.74rem !important; }
+    .pos-result { border:1px solid #e2e7ee; border-radius:10px; max-height:220px; overflow:auto; margin-bottom:12px; }
+    .pos-result div { padding:9px 12px; font-size:.82rem; cursor:pointer; border-bottom:1px solid #f1f4f8; display:flex; justify-content:space-between; }
+    .pos-result div:hover { background:#f0f6ff; }
+    .pos-result .stk { color:#718096; font-size:.72rem; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { background:#1a365d; color:#fff; padding:9px 10px; text-align:left; font-size:.64rem; text-transform:uppercase; }
+    .pos-cart { table-layout:fixed; }
+    .pos-cart td, .omni-tablewrap td { padding:6px 8px; border-bottom:1px solid #eef1f5; }
+    .pos-cart .omni-input { padding:6px 6px; }
+    .pos-cart .num { font-size:.8rem; }
+    .pos-cart td:first-child .omni-input { min-width:0; }
+    .pos-tot { margin:14px 0; border-top:2px solid #1a365d; padding-top:10px; }
+    .pos-tot div { display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
+    .pos-tot b { font-family:'Consolas',monospace; }
+    .pos-total { font-weight:900; color:#1a365d; font-size:1.05rem !important; border-top:1px dashed #cbd5e0; margin-top:4px; padding-top:8px !important; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; }
+    .omni-tablewrap tbody tr:hover { background:#f6f9fd; }
+    .bdg { padding:3px 8px; border-radius:6px; font-size:.66rem; font-weight:800; }
+    .bdg.ok{background:#e8f8ef;color:#1e8e4e}.bdg.no{background:#fdeceb;color:#e74c3c}.bdg.cr{background:#fff3e0;color:#d35400}
+</style>

@@ -1,0 +1,67 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-scale-balanced"></i> BALANCE DE COMPROBACIÓN</h2>
+                <p class="omni-sub">Sumas y saldos · verificación de la partida doble</p>
+            </div>
+        </div>
+        <div class="omni-head-r">
+            <button class="omni-btn omni-btn-ghost" onclick="BalancecomprobacionModule.exportarCSV()"><i class="fas fa-file-csv"></i> CSV</button>
+            <button class="omni-btn omni-btn-ghost" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+        </div>
+    </div>
+
+    <div class="omni-toolbar">
+        <label class="omni-fld">Desde <input type="date" id="bc-desde" class="omni-input"></label>
+        <label class="omni-fld">Hasta <input type="date" id="bc-hasta" class="omni-input"></label>
+        <button class="omni-btn omni-btn-primary" onclick="BalancecomprobacionModule.cargar()"><i class="fas fa-magnifying-glass"></i> Consultar</button>
+        <span class="omni-count" id="bc-estado"></span>
+    </div>
+
+    <div class="omni-tablewrap">
+        <table class="omni-table" id="bc-tabla">
+            <thead>
+                <tr>
+                    <th rowspan="2" style="width:110px">Código</th><th rowspan="2">Cuenta</th>
+                    <th colspan="2">Saldo anterior</th><th colspan="2">Movimiento período</th><th colspan="2">Sumas acumuladas</th><th colspan="2">Saldos</th>
+                </tr>
+                <tr>
+                    <th class="num">Debe</th><th class="num">Haber</th>
+                    <th class="num">Debe</th><th class="num">Haber</th>
+                    <th class="num">Debe</th><th class="num">Haber</th>
+                    <th class="num">Deudor</th><th class="num">Acreedor</th>
+                </tr>
+            </thead>
+            <tbody id="bc-body"><tr><td colspan="10" class="omni-empty">Consulta un período.</td></tr></tbody>
+            <tfoot id="bc-foot"></tfoot>
+        </table>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.3rem; font-weight:900; letter-spacing:1.5px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-toolbar { display:flex; gap:12px; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap; }
+    .omni-fld { display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-count { margin-left:auto; font-size:.8rem; font-weight:900; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:66vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.76rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:8px 10px; text-align:left; font-size:.64rem; letter-spacing:.5px; text-transform:uppercase; }
+    .omni-table tbody td { padding:6px 10px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .num { text-align:right; font-family:'Consolas',monospace; }
+    .c { font-family:'Consolas',monospace; font-weight:700; color:#1a365d; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+    #bc-foot td { border-top:2px solid #1a365d; font-weight:900; background:#eef4fc; padding:9px 10px; position:sticky; bottom:0; }
+</style>

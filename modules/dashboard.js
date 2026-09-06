@@ -8,9 +8,9 @@ const DashboardModule = {
         this._iniciarReloj();
         this._setUserName();
         this._adminOnlyCards();
+        this._cargarResumenContable();
         this._verificarCaja();
         this._cargarAlertas();
-        this._cargarAlertasMantenimiento();
     },
 
     _iniciarReloj() {
@@ -38,123 +38,121 @@ const DashboardModule = {
         });
     },
 
-    async _verificarCaja() {
-        const user    = App.user;
-        const sedeId  = localStorage.getItem('currentSedeId') || user?.SedeID;
-        const userId  = user?.UsuarioID || user?.id;
-        if (!userId || !sedeId) return;
+    _fmt(n) {
+        return '$ ' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
 
+    async _cargarResumenContable() {
         try {
-            const [resCaja, resRack] = await Promise.all([
-                api.get(`/caja/estado/${userId}/${sedeId}`),
-                api.get(`/recepcion/rack/${sedeId}`)
-            ]);
-
-            const elCaja = document.getElementById('wg-caja');
-            if (elCaja) {
-                if (resCaja.data.abierta) {
-                    elCaja.textContent = 'Abierta ✓';
-                    elCaja.style.color = '#27ae60';
-                } else {
-                    elCaja.textContent = 'Cerrada';
-                    elCaja.style.color = '#e74c3c';
-                }
+            const sedeId = localStorage.getItem('currentSedeId') || App.user?.SedeID;
+            const res = await api.get(`/contabilidad/resumen?sedeId=${sedeId}`);
+            const d = res.data || {};
+            const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+            set('wg-ingresos', this._fmt(d.ingresosMes));
+            set('wg-gastos', this._fmt(d.gastosMes));
+            const elU = document.getElementById('wg-utilidad');
+            if (elU) {
+                elU.textContent = this._fmt(d.utilidadMes);
+                elU.style.color = Number(d.utilidadMes) >= 0 ? '#1e8e4e' : '#e74c3c';
             }
-
-            const habitaciones = resRack.data || [];
-            if (habitaciones.length > 0) {
-                const total   = habitaciones.length;
-                const ocupadas = habitaciones.filter(h => h.Estado === 'OCUPADA').length;
-                const pct     = Math.round((ocupadas / total) * 100);
-
-                const elOcup = document.getElementById('wg-ocupacion');
-                if (elOcup) elOcup.textContent = `${pct}%`;
-
-                const hoyStr = new Date().toISOString().split('T')[0];
-                const salidas = habitaciones.filter(h =>
-                    h.Estado === 'OCUPADA' && h.FechaSalidaProgramada &&
-                    h.FechaSalidaProgramada.slice(0, 10) === hoyStr
-                ).length;
-
-                const elSal = document.getElementById('wg-salidas');
-                if (elSal) elSal.textContent = salidas;
-            }
+            set('wg-asientos', d.asientosMes ?? '—');
         } catch (_) {
-            const elCaja = document.getElementById('wg-caja');
-            if (elCaja) elCaja.textContent = '—';
+            ['wg-ingresos', 'wg-gastos', 'wg-utilidad', 'wg-asientos'].forEach(id => {
+                const e = document.getElementById(id); if (e) e.textContent = '—';
+            });
         }
+    },
+
+    async _verificarCaja() {
+        const user = App.user;
+        const sedeId = localStorage.getItem('currentSedeId') || user?.SedeID;
+        const userId = user?.UsuarioID || user?.id;
+        const elCaja = document.getElementById('wg-caja');
+        if (!userId || !sedeId || !elCaja) return;
+        try {
+            const resCaja = await api.get(`/caja/estado/${userId}/${sedeId}`);
+            if (resCaja.data.abierta) { elCaja.textContent = 'Abierta ✓'; elCaja.style.color = '#1e8e4e'; }
+            else { elCaja.textContent = 'Cerrada'; elCaja.style.color = '#e74c3c'; }
+        } catch (_) { elCaja.textContent = '—'; }
     },
 
     async _cargarAlertas() {
         const lista = document.getElementById('dash-alerts-list');
         if (!lista) return;
+        lista.innerHTML = '';
+        const items = [];
 
+        // Balance de comprobación: descuadre + deuda con el personal / IESS
         try {
             const sedeId = localStorage.getItem('currentSedeId') || App.user?.SedeID;
-            const hoy  = new Date().toISOString().split('T')[0];
-            const en30 = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-
-            const res = await api.get(`/reservas/lista/${sedeId}?estado=PENDIENTE&desde=${hoy}&hasta=${en30}`);
-            const pendientes = res.data.reservas || [];
-
-            lista.innerHTML = '';
-
-            if (!pendientes.length) {
-                lista.innerHTML = `<div style="text-align:center;padding:20px;opacity:.6;font-size:.8rem;">
-                    <i class="fas fa-check-circle" style="color:#27ae60"></i> Sin reservas pendientes</div>`;
-                return;
+            const res = await api.get(`/contabilidad/balance-comprobacion?sedeId=${sedeId}`);
+            const s = res.data.sumas || {};
+            const descuadre = Math.abs((s.debeAcum || 0) - (s.haberAcum || 0));
+            if (descuadre > 0.01) {
+                items.push({
+                    cls: 'danger', icon: 'fa-scale-unbalanced',
+                    title: 'Balance de comprobación descuadrado',
+                    sub: `Diferencia de ${this._fmt(descuadre)} entre Debe y Haber`
+                });
             }
-
-            pendientes.forEach(rv => {
-                const item = document.createElement('div');
-                item.className = 'alert-item warning';
-                item.style.cursor = 'pointer';
-                item.onclick = () => App.renderView('reservas', 'viewport');
-                item.innerHTML = `
-                    <i class="fas fa-calendar-check" style="color:#f39c12;font-size:1.2rem"></i>
-                    <div>
-                        <strong>${rv.NombreReserva}</strong>
-                        <div style="font-size:.7rem;color:#718096">
-                            Llega ${rv.LlegadaFmt || (rv.FechaLlegada||'').split('T')[0]} · ${rv.TipoNombre || ''} · <code>${rv.CodigoReserva}</code>
-                        </div>
-                    </div>`;
-                lista.appendChild(item);
-            });
-        } catch (_) {
-            const lista2 = document.getElementById('dash-alerts-list');
-            if (lista2) lista2.innerHTML = `<div style="text-align:center;padding:20px;opacity:.5;font-size:.8rem;">
-                No se pudieron cargar las alertas</div>`;
-        }
-    },
-
-    async _cargarAlertasMantenimiento() {
-        try {
-            const sedeId = localStorage.getItem('currentSedeId') || App.user?.SedeID;
-            if (!sedeId) return;
-            const res = await api.get(`/mantenimiento/stats/${sedeId}`);
-            const { Urgentes, Pendientes } = res.data;
-
-            const badge = document.getElementById('dash-mt-badge');
-            if (badge && Urgentes > 0) {
-                badge.style.display = 'flex';
-                badge.textContent   = Urgentes;
-            }
-
-            if ((Pendientes || 0) > 0) {
-                const lista = document.getElementById('dash-alerts-list');
-                if (lista) {
-                    const item = document.createElement('div');
-                    item.className   = `alert-item ${Urgentes > 0 ? 'danger' : 'warning'}`;
-                    item.style.cursor = 'pointer';
-                    item.onclick     = () => App.renderView('mantenimiento', 'viewport');
-                    item.innerHTML   = `
-                        <i class="fas fa-tools" style="color:${Urgentes > 0 ? '#e74c3c' : '#f39c12'};font-size:1.2rem"></i>
-                        <div><strong>${Pendientes} orden(es) de mantenimiento pendiente(s)</strong>
-                        <div style="font-size:.7rem;color:#718096">${Urgentes > 0 ? Urgentes + ' urgente(s)' : 'Sin urgentes'} · Toca para gestionar</div></div>`;
-                    lista.appendChild(item);
-                }
+            // Cuentas por pagar al personal / seguridad social (saldo acreedor)
+            const PERS = { '2.1.05': 'Sueldos y beneficios por pagar', '2.1.06': 'IESS por pagar', '2.1.10': 'Beneficios sociales por pagar' };
+            let deudaPersonal = 0;
+            (res.data.cuentas || []).forEach(c => { if (PERS[c.Codigo]) deudaPersonal += Number(c.SaldoAcreedor || 0); });
+            if (deudaPersonal > 0.01) {
+                items.push({
+                    cls: 'warning', icon: 'fa-hand-holding-dollar',
+                    title: `Se adeuda al personal / IESS: ${this._fmt(deudaPersonal)}`,
+                    sub: 'Sueldos, beneficios y aportes pendientes de pago',
+                    go: 'personal'
+                });
             }
         } catch (_) {}
+
+        // Nómina del mes anterior sin pagar
+        try {
+            const sedeId = localStorage.getItem('currentSedeId') || App.user?.SedeID;
+            const res = await api.get(`/personal/pendiente/${sedeId}`);
+            const d = res.data || {};
+            if ((d.pendientes || 0) > 0) {
+                items.push({
+                    cls: 'warning', icon: 'fa-users',
+                    title: `Nómina de ${d.periodo} sin pagar: ${d.pendientes} empleado(s)`,
+                    sub: d.montoAprox ? `Aprox. ${this._fmt(d.montoAprox)} (salario base)` : 'Genera y paga el rol',
+                    go: 'personal'
+                });
+            }
+        } catch (_) {}
+
+        // Órdenes de mantenimiento pendientes (genérico)
+        try {
+            const sedeId = localStorage.getItem('currentSedeId') || App.user?.SedeID;
+            const res = await api.get(`/mantenimiento/stats/${sedeId}`);
+            const { Urgentes, Pendientes } = res.data || {};
+            if ((Pendientes || 0) > 0) {
+                items.push({
+                    cls: Urgentes > 0 ? 'danger' : 'warning', icon: 'fa-tools',
+                    title: `${Pendientes} orden(es) de mantenimiento pendiente(s)`,
+                    sub: Urgentes > 0 ? `${Urgentes} urgente(s)` : 'Sin urgentes',
+                    go: 'mantenimiento'
+                });
+            }
+        } catch (_) {}
+
+        if (!items.length) {
+            lista.innerHTML = `<div style="text-align:center;padding:22px;opacity:.6;font-size:.8rem;">
+                <i class="fas fa-check-circle" style="color:#1e8e4e"></i> Todo en orden</div>`;
+            return;
+        }
+        items.forEach(it => {
+            const div = document.createElement('div');
+            div.className = `alert-item ${it.cls}`;
+            if (it.go) { div.style.cursor = 'pointer'; div.onclick = () => App.renderView(it.go, 'viewport'); }
+            div.innerHTML = `<i class="fas ${it.icon}"></i>
+                <div><strong>${it.title}</strong>
+                <div style="font-size:.7rem;color:#718096">${it.sub}</div></div>`;
+            lista.appendChild(div);
+        });
     },
 
     destroy() {

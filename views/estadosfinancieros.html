@@ -1,0 +1,59 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-file-invoice-dollar"></i> ESTADOS FINANCIEROS</h2>
+                <p class="omni-sub">Estado de Resultados · Estado de Situación Financiera</p>
+            </div>
+        </div>
+        <div class="omni-head-r">
+            <button class="omni-btn omni-btn-ghost" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+        </div>
+    </div>
+
+    <div class="ef-tabs">
+        <button class="ef-tab active" data-t="er" onclick="EstadosfinancierosModule.tab('er')">Estado de Resultados</button>
+        <button class="ef-tab" data-t="bg" onclick="EstadosfinancierosModule.tab('bg')">Balance General</button>
+    </div>
+
+    <div class="omni-toolbar">
+        <label class="omni-fld" id="ef-desde-wrap">Desde <input type="date" id="ef-desde" class="omni-input"></label>
+        <label class="omni-fld">Hasta / Corte <input type="date" id="ef-hasta" class="omni-input"></label>
+        <button class="omni-btn omni-btn-primary" onclick="EstadosfinancierosModule.cargar()"><i class="fas fa-magnifying-glass"></i> Generar</button>
+        <button class="omni-btn" onclick="EstadosfinancierosModule.pdf()"><i class="fas fa-file-pdf"></i> PDF</button>
+    </div>
+
+    <div id="ef-out" class="ef-out"><div class="omni-empty">Genera un reporte.</div></div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.3rem; font-weight:900; letter-spacing:1.5px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .ef-tabs { display:flex; gap:8px; margin-bottom:16px; }
+    .ef-tab { border:none; background:#e2e7ee; color:#5a6b7d; padding:10px 20px; border-radius:10px 10px 0 0; font-weight:800; font-size:.8rem; cursor:pointer; }
+    .ef-tab.active { background:#1a365d; color:#fff; }
+    .omni-toolbar { display:flex; gap:12px; align-items:flex-end; margin-bottom:18px; flex-wrap:wrap; }
+    .omni-fld { display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+    .ef-out { display:flex; gap:20px; flex-wrap:wrap; }
+    .ef-card { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); padding:24px 26px; flex:1; min-width:340px; }
+    .ef-card h3 { margin:0 0 14px; color:#1a365d; font-size:1rem; font-weight:900; letter-spacing:1px; border-bottom:2px solid #2f7be6; padding-bottom:8px; }
+    .ef-row { display:flex; justify-content:space-between; padding:7px 0; font-size:.82rem; border-bottom:1px dashed #eef1f5; }
+    .ef-row .c { font-family:'Consolas',monospace; color:#718096; margin-right:8px; }
+    .ef-row .v { font-family:'Consolas',monospace; font-weight:700; }
+    .ef-sub { display:flex; justify-content:space-between; padding:10px 0; font-weight:900; color:#1a365d; border-top:2px solid #1a365d; margin-top:6px; }
+    .ef-total { display:flex; justify-content:space-between; padding:12px 14px; margin-top:10px; border-radius:10px; background:#eef4fc; font-weight:900; color:#1a365d; font-size:.95rem; }
+    .ef-util-pos { color:#1e8e4e !important; } .ef-util-neg { color:#e74c3c !important; }
+    .ef-flag { margin-top:12px; font-size:.78rem; font-weight:800; }
+    .grp-h { font-weight:900; color:#5a6b7d; text-transform:uppercase; font-size:.72rem; letter-spacing:1px; margin:14px 0 4px; }
+</style>

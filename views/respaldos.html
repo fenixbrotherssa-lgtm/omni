@@ -1,0 +1,49 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-database"></i> RESPALDOS</h2>
+                <p class="omni-sub">Copias de seguridad de la base de datos y los archivos</p>
+            </div>
+        </div>
+        <div class="omni-head-r">
+            <button class="omni-btn omni-btn-primary" id="rb-run" onclick="RespaldosModule.ejecutar()"><i class="fas fa-play"></i> Respaldar ahora</button>
+        </div>
+    </div>
+
+    <div class="omni-toolbar">
+        <span class="omni-sub" id="rb-carpeta">—</span>
+        <button class="omni-btn omni-btn-ghost" onclick="RespaldosModule.cargar()"><i class="fas fa-rotate"></i> Actualizar</button>
+        <span class="omni-count" id="rb-count">0</span>
+    </div>
+
+    <div class="omni-tablewrap">
+        <table class="omni-table">
+            <thead><tr><th>Archivo</th><th style="width:120px">Tamaño</th><th style="width:200px">Fecha</th><th style="width:120px">Acción</th></tr></thead>
+            <tbody id="rb-body"><tr><td colspan="4" class="omni-empty">Cargando…</td></tr></tbody>
+        </table>
+    </div>
+
+    <p class="omni-sub" style="margin-top:14px">
+        <i class="fas fa-circle-info"></i> El respaldo automático corre según <code>BACKUP_CRON</code> (por defecto 02:00). Para enviarlo a Google Drive, configura <code>BACKUP_RCLONE_REMOTE</code> con un remoto de <code>rclone</code>.
+    </p>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; }
+    .omni-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .omni-count { margin-left:auto; font-size:.75rem; font-weight:800; color:#718096; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:62vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:11px 14px; text-align:left; font-size:.66rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:9px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+</style>

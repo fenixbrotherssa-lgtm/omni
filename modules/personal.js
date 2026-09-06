@@ -30,8 +30,8 @@ const PersonalModule = {
     async cargarMetodosYRubros() {
         try {
             const [resMetodos, resRubros] = await Promise.all([
-                api.get('/reportes/metodos-pago'),
-                api.get('/reportes/rubros')
+                api.get('/catalogos/metodos-pago'),
+                api.get('/catalogos/rubros')
             ]);
             this.metodosPagoCache = resMetodos.data || [];
             this.rubrosEgresoCache = (resRubros.data || []).filter(r => r.Tipo === 'Egreso');

@@ -21,3 +21,6 @@ Setup_MasterHotel_Cliente_*.exe
 Thumbs.db
 *.log
 _test_*
+
+# Codigo hotelero archivado (referencia local)
+_legacy_hotel/

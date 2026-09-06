@@ -1,8 +1,10 @@
-name: Build macOS
+name: Build macOS (OMNI CORE)
 
-# Solo el cliente de escritorio (DMG). El backend de MasterHotel se compila
-# y corre siempre en la máquina Windows del hotel, como siempre — este
-# workflow no toca ni empaqueta nada del backend.
+# Compila SOLO la app de escritorio para macOS (DMG + ZIP + omnicore-mac.yml).
+# El backend no se toca aquí. Al terminar, en "Artifacts" del run queda un zip
+# con los archivos LISTOS para mover tal cual a la carpeta de descargas del
+# sitio (public/downloads/ — o C:\Program Files\CasRodsoft Web\public\downloads\
+# en el servidor). No hay que renombrar ni editar nada.
 on:
   push:
     branches: [main, master]
@@ -24,7 +26,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Instalar dependencias del frontend
+      - name: Instalar dependencias
         run: npm ci
 
       - name: Convertir icono.png → icono.icns (si no existe .icns)
@@ -47,18 +49,31 @@ jobs:
               rm -rf icono.iconset
               echo "icono.icns generado desde icono.png"
             else
-              echo "AVISO: No se encontró icono.png ni icono.icns. El build usará el ícono por defecto de Electron."
+              echo "AVISO: no hay icono.png ni icono.icns — se usa el ícono por defecto de Electron."
               sed -i '' '/"icon": "assets\/icono.icns"/d' ../package.json
             fi
           else
-            echo "icono.icns ya existe, se usa directamente."
+            echo "icono.icns ya existe."
           fi
 
-      - name: Compilar DMG (x64 + arm64)
-        run: npx electron-builder --mac --publish never
+      - name: Ofuscar + empaquetar (DMG universal + ZIP + omnicore-mac.yml)
+        env:
+          TARGET_PLATFORM: darwin
+        run: node build.js
 
-      - name: Subir DMG (app de escritorio)
+      - name: Reunir artefactos para descargas
+        run: |
+          mkdir -p publish
+          cp dist/OMNI-CORE-*-mac.dmg          publish/ 2>/dev/null || true
+          cp dist/OMNI-CORE-*-mac.dmg.blockmap publish/ 2>/dev/null || true
+          cp dist/OMNI-CORE-*-mac.zip          publish/ 2>/dev/null || true
+          cp dist/OMNI-CORE-*-mac.zip.blockmap publish/ 2>/dev/null || true
+          cp dist/omnicore-mac.yml             publish/ 2>/dev/null || true
+          ls -la publish
+
+      - name: Subir artefactos (mover tal cual a public/downloads/)
         uses: actions/upload-artifact@v4
         with:
-          name: MasterHotel-Desktop-Mac
-          path: dist/*.dmg
+          name: OMNI-CORE-mac-downloads
+          path: publish/*
+          if-no-files-found: error

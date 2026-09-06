@@ -215,6 +215,10 @@
                 <i class="fas fa-file-invoice"></i> REPORTE OFICIAL
             </button>
 
+            <button class="btn-neo" style="background:#eaf2fb;color:#1a5fc0;" onclick="ActivosModule.abrirDepreciacion()" title="Corrida de depreciación mensual">
+                <i class="fas fa-chart-line-down"></i> DEPRECIACIÓN
+            </button>
+
             <button class="btn-neo btn-save" onclick="ActivosModule.abrirModalRegistro()">
                 <i class="fas fa-plus-circle"></i> NUEVO ACTIVO
             </button>
@@ -238,7 +242,8 @@
             <option value="OPERATIVO">Operativo</option>
             <option value="EN TRÁNSITO">En Tránsito</option>
             <option value="EN MANTENIMIENTO">En Mantenimiento</option>
-            <option value="BAJA">Baja</option>
+            <option value="BAJA">Dados de baja</option>
+            <option value="VENDIDO">Vendidos</option>
         </select>
     </div>
 

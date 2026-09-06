@@ -1,0 +1,114 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-repeat"></i> OMNI RECURRENTE</h2>
+                <p class="omni-sub">Suscripciones y pagos recurrentes · ingreso diferido · catálogo de ítems</p>
+            </div>
+        </div>
+        <div class="omni-head-r">
+            <button class="omni-btn admin-only" onclick="RecurrenteModule.correrFacturacion()"><i class="fas fa-bolt"></i> FACTURAR VENCIDAS</button>
+        </div>
+    </div>
+
+    <div id="rc-resumen" class="rc-cards">
+        <div class="rc-card"><span>Activas</span><b id="rc-activas">—</b></div>
+        <div class="rc-card"><span>MRR (ingreso mensual)</span><b id="rc-mrr">—</b></div>
+        <div class="rc-card"><span>Por facturar hoy</span><b id="rc-hoy">—</b></div>
+        <div class="rc-card"><span>Por cobrar</span><b id="rc-cobrar">—</b></div>
+        <div class="rc-card"><span>Ingreso diferido (saldo)</span><b id="rc-diferido">—</b></div>
+    </div>
+
+    <div class="omni-toolbar">
+        <button class="omni-btn rc-tab" data-tab="subs" onclick="RecurrenteModule.tab('subs')"><i class="fas fa-rotate"></i> Suscripciones</button>
+        <button class="omni-btn rc-tab" data-tab="items" onclick="RecurrenteModule.tab('items')"><i class="fas fa-tags"></i> Catálogo de ítems</button>
+    </div>
+
+    <!-- SUSCRIPCIONES -->
+    <div id="rc-subs" class="rc-panel">
+        <div class="omni-toolbar">
+            <button class="omni-btn omni-btn-primary" onclick="RecurrenteModule.nuevaSuscripcion()"><i class="fas fa-plus"></i> NUEVA SUSCRIPCIÓN</button>
+            <select id="rc-sub-estado" class="omni-input" onchange="RecurrenteModule.cargarSubs()">
+                <option value="">Todas</option>
+                <option value="ACTIVA">Activas</option>
+                <option value="PAUSADA">Pausadas</option>
+                <option value="CANCELADA">Canceladas</option>
+            </select>
+            <span class="omni-count" id="rc-sub-count">0</span>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr>
+                    <th>Descripción</th><th style="width:150px">Cliente</th><th style="width:120px">Monto</th>
+                    <th style="width:110px">Periodo</th><th style="width:120px">Próx. factura</th>
+                    <th style="width:100px">Estado</th><th style="width:220px">Acción</th>
+                </tr></thead>
+                <tbody id="rc-sub-body"><tr><td colspan="7" class="omni-empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- CATÁLOGO -->
+    <div id="rc-items" class="rc-panel" style="display:none">
+        <div class="omni-toolbar">
+            <button class="omni-btn omni-btn-primary admin-only" onclick="RecurrenteModule.nuevoItem()"><i class="fas fa-plus"></i> NUEVO ÍTEM</button>
+            <select id="rc-item-tipo" class="omni-input" onchange="RecurrenteModule.cargarItems()">
+                <option value="">Todos los tipos</option>
+                <option value="BIEN">Bien</option>
+                <option value="SERVICIO">Servicio</option>
+                <option value="SUSCRIPCION">Suscripción</option>
+            </select>
+            <span class="omni-count" id="rc-item-count">0</span>
+        </div>
+        <div class="omni-tablewrap">
+            <table class="omni-table">
+                <thead><tr>
+                    <th style="width:130px">Código</th><th>Nombre</th><th style="width:120px">Tipo</th>
+                    <th style="width:110px">Precio base</th><th style="width:80px">IVA</th>
+                    <th style="width:110px">Periodicidad</th><th style="width:90px">Estado</th>
+                    <th style="width:90px" class="admin-only">Acción</th>
+                </tr></thead>
+                <tbody id="rc-item-body"><tr><td colspan="8" class="omni-empty">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ── base omni (compartido con el resto del software) ── */
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn:hover { background:#d3dae4; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-btn-danger { background:#fdeceb; color:#e74c3c; } .omni-btn-danger:hover { background:#f8d7d5; }
+    .omni-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+    .omni-input { padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.82rem; background:#fff; color:#2c3e50; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-check { font-size:.78rem; font-weight:700; color:#5a6b7d; display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .omni-count { margin-left:auto; font-size:.75rem; font-weight:800; color:#718096; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:64vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:12px 14px; text-align:left; font-size:.68rem; letter-spacing:1px; text-transform:uppercase; }
+    .omni-table tbody td { padding:9px 14px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .omni-empty { text-align:center; padding:26px; color:#a0aab8; }
+
+.rc-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:6px 0 14px; }
+.rc-card { background:#f1f3f7; border-radius:14px; padding:12px 14px; }
+.rc-card span { font-size:.66rem; font-weight:800; color:#718096; text-transform:uppercase; display:block; }
+.rc-card b { font-size:1.35rem; color:#1a365d; }
+.rc-tab.rc-active { background:#1a365d; color:#fff; }
+.rc-pill { padding:3px 9px; border-radius:20px; font-size:.66rem; font-weight:800; text-transform:uppercase; }
+.rc-pill.on { background:#dcfce7; color:#166534; }
+.rc-pill.pa { background:#fef9c3; color:#854d0e; }
+.rc-pill.of { background:#fee2e2; color:#991b1b; }
+.rc-pill.di { background:#e0e7ff; color:#3730a3; }
+@media (max-width:900px){ .rc-cards{ grid-template-columns:repeat(2,1fr); } }
+</style>

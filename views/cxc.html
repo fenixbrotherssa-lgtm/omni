@@ -1,0 +1,93 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-hand-holding-dollar"></i> CUENTAS POR COBRAR</h2>
+                <p class="omni-sub">Cartera de clientes · antigüedad de saldos · cobros con asiento automático</p>
+            </div>
+        </div>
+        <div class="omni-head-r">
+            <button class="omni-btn omni-btn-primary" onclick="CxcModule.abrirNueva()"><i class="fas fa-plus"></i> NUEVA CxC</button>
+        </div>
+    </div>
+
+    <div class="omni-cards" id="cxc-cards"></div>
+
+    <div class="omni-toolbar">
+        <select id="cxc-estado" class="omni-input" onchange="CxcModule.cargar()">
+            <option value="">Pendientes y parciales</option>
+            <option value="PENDIENTE">Solo pendientes</option>
+            <option value="PARCIAL">Solo parciales</option>
+            <option value="PAGADA">Pagadas</option>
+            <option value="ANULADA">Anuladas</option>
+        </select>
+        <input type="text" id="cxc-buscar" class="omni-input" placeholder="Filtrar por cliente..." oninput="CxcModule.render()">
+        <span class="omni-count" id="cxc-count"></span>
+    </div>
+
+    <div class="omni-tablewrap">
+        <table class="omni-table">
+            <thead><tr>
+                <th>Cliente</th><th style="width:110px">Documento</th>
+                <th style="width:100px">Emisión</th><th style="width:100px">Vence</th><th style="width:70px">Días</th>
+                <th style="width:120px" class="num">Monto</th><th style="width:120px" class="num">Saldo</th>
+                <th style="width:100px">Estado</th><th style="width:170px">Acción</th>
+            </tr></thead>
+            <tbody id="cxc-body"><tr><td colspan="9" class="omni-empty">Cargando...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="cxc-modal" class="omni-modal-bg" style="display:none;">
+    <div class="omni-modal">
+        <h3 id="cxc-modal-title">Nueva cuenta por cobrar</h3>
+        <div id="cxc-modal-body"></div>
+        <div class="omni-modal-actions">
+            <button class="omni-btn omni-btn-ghost" onclick="CxcModule.cerrar()">Cancelar</button>
+            <button class="omni-btn omni-btn-primary" id="cxc-modal-ok"><i class="fas fa-save"></i> Guardar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:28px 36px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.3rem; font-weight:900; letter-spacing:1.5px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:10px; padding:10px 16px; font-weight:800; font-size:.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-primary:hover { background:#1a5fc0; }
+    .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; } .omni-btn-ghost:hover { background:#d3dae4; }
+    .omni-btn-ok { background:#e8f8ef; color:#1e8e4e; } .omni-btn-danger { background:#fdeceb; color:#e74c3c; }
+    .omni-input { padding:9px 11px; border:1px solid #d5dce5; border-radius:9px; font-size:.82rem; background:#fff; outline:none; }
+    .omni-input:focus { border-color:#2f7be6; }
+    .omni-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:18px; }
+    @media (max-width:1100px){ .omni-cards { grid-template-columns:repeat(3,1fr); } }
+    .omni-card { background:#fff; border-radius:12px; padding:14px 16px; box-shadow:0 4px 12px rgba(30,50,80,.07); }
+    .omni-card span { font-size:.64rem; font-weight:800; color:#718096; text-transform:uppercase; letter-spacing:.4px; }
+    .omni-card b { display:block; margin-top:5px; font-size:1.05rem; font-weight:900; color:#1a365d; font-family:'Consolas',monospace; }
+    .omni-card.hot b { color:#e74c3c; }
+    .omni-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .omni-count { margin-left:auto; font-size:.75rem; font-weight:800; color:#718096; }
+    .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; max-height:56vh; }
+    .omni-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .omni-table thead th { position:sticky; top:0; background:#1a365d; color:#fff; padding:10px 12px; text-align:left; font-size:.64rem; text-transform:uppercase; }
+    .omni-table tbody td { padding:8px 12px; border-bottom:1px solid #eef1f5; }
+    .omni-table tbody tr:hover { background:#f6f9fd; }
+    .num { text-align:right; font-family:'Consolas',monospace; }
+    .omni-empty { text-align:center; padding:24px; color:#a0aab8; }
+    .venc { color:#e74c3c; font-weight:800; }
+    .bdg { padding:3px 8px; border-radius:6px; font-size:.64rem; font-weight:800; }
+    .bdg.PENDIENTE{background:#fff3e0;color:#d35400}.bdg.PARCIAL{background:#e7f2ff;color:#2f7be6}
+    .bdg.PAGADA{background:#e8f8ef;color:#1e8e4e}.bdg.ANULADA{background:#eef0f4;color:#8895a7}
+    .omni-modal-bg { position:fixed; inset:0; background:rgba(15,25,40,.55); display:flex; align-items:center; justify-content:center; z-index:2000; }
+    .omni-modal { background:#fff; border-radius:16px; padding:26px; width:min(560px,94vw); box-shadow:0 30px 60px rgba(0,0,0,.3); max-height:90vh; overflow:auto; }
+    .omni-modal h3 { margin:0 0 16px; color:#1a365d; font-weight:900; letter-spacing:1px; }
+    .omni-modal label { display:flex; flex-direction:column; gap:5px; font-size:.7rem; font-weight:800; color:#5a6b7d; text-transform:uppercase; margin-bottom:12px; }
+    .omni-modal .omni-input { width:100%; }
+    .omni-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+    .cob-list { margin-top:10px; font-size:.8rem; }
+    .cob-list div { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #eef1f5; }
+</style>

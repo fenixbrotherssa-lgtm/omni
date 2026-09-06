@@ -1,51 +1,162 @@
-<div class="login-page-wrapper" style="height: 100vh; display: flex; justify-content: center; align-items: center; 
-    background: #caced3; font-family: 'Segoe UI', system-ui, sans-serif; position: relative; overflow: hidden;">
-    
-    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMiIgdmlld0JveD0iMCAwIDIwIDIyIj48ZyBmaWxsPSIjYThhZGI0IiBmaWxsLW9wYWNpdHk9IjAuMTUiPjxwYXRoIGQ9Ik0wIDEwaDF2Mkgwdi0ybTAtOGgxYTMgMyAwIDAgMSAzIDN2MUgwVjRtMTkgMTUuMzlhMyAzIDAgMCAxLTIuNjEgMS42MUgwVjIwaDE2LjM5YTMgMyAwIDAgMCAyLjYxLTEuNjFabS0xLjM5LTIuNThhMyAzIDAgMCAxLTItMy40NVYwSDIwdjUuMzlhMyAzIDAgMCAxLTIgMy40NVYyMGgtMi42MWMtLjU2LS42My0xLTIuMDUtMS0yLjU4Wk0xIDJ2MmgyVjJIMVptMTcgMGgyVjJIMThtaC0yYTMgMyAwIDAgMC0zIDN2MUgxMlY0aDEuMzlhMyAzIDAgMCAxIDMtM1pNMCAxNWgyVjEzaDJ2Mkgwdi0ybTItMnYyaDZWMTNoMnYySDJ2LTJtMi0yVjdIMnYySDRWNWgyVjdINnYySDRWNW0xMSA4VjhIMTN2NWgxM3YtM2gtMnYzaDJ2LTNNMyAxOWgxVjE3SDNWMTltMTUgMGgxVjE3SDE4VjE5Wk04IDE2aDF2Mkg4di0ybTAgLTRoMXYySDh2LTJtMC00aDF2Mkg4di0ybTAtNGgxdjJIOHYtMm00IDhoMXYySDEydi0ybTAgLTRoMXYySDEydi0ybTAgLTRoMXYySDEydi0ybTAgLTRoMXYySDEydi0ybTYgMTJoMXYySDE4di0ybTAgLTRoMXYySDE4di0ybTAgLTRoMXYySDE4di0ybTAgLTRoMXYySDE4di0ybTItNEgxN3YySDIwdi0yWk0xNyAyVjJIMTVWMmgxN3YySDIwdjJ6Ii8+PC9nPjwvc3ZnPg==');
-        opacity: 0.2;"></div>
+<div class="omni-login">
 
-    <div style="width: 440px; padding: 60px 50px; background: #e0e5ea; border-radius: 40px; text-align: center;
-        position: relative; z-index: 10; box-shadow: 25px 25px 70px #9eaab6, -25px -25px 70px #ffffff;
-        border: 1px solid rgba(255,255,255,0.7);">
-        
-        <div style="height: 100px; display: flex; justify-content: center; align-items: center; margin-bottom: 45px; position: relative;">
-             <img src="assets/logo.png" alt="Logo SystemCore" 
-                style="width: 450px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                filter: drop-shadow(5px 5px 15px rgba(0,0,0,0.2)); pointer-events: none;">
-        </div>
-
-        <h2 style="color: #2c3e50; letter-spacing: 5px; font-weight: 800; margin-bottom: 50px; font-size: 1.1rem; text-transform: uppercase;">
-            ACCESO AL SISTEMA
-        </h2>
-        
-        <form id="login-form">
-            <div style="margin-bottom: 25px; position: relative; text-align: left;">
-                <i class="fas fa-user" style="position: absolute; left: 20px; top: 22px; color: #7f8c8d; font-size: 1rem;"></i>
-                <input type="text" id="login-usuario" placeholder="Identificador" required
-                    style="width: 100%; padding: 22px 20px 22px 60px; border: 2px solid transparent; border-radius: 18px; 
-                    background: #e0e5ea; color: #2c3e50; outline: none; font-size: 1rem;
-                    font-weight: 700; box-shadow: inset 8px 8px 16px #9eaab6, inset -8px -8px 16px #ffffff; transition: 0.3s;">
-            </div>
-
-            <div style="margin-bottom: 55px; position: relative; text-align: left;">
-                <i class="fas fa-key" style="position: absolute; left: 20px; top: 22px; color: #7f8c8d; font-size: 1rem;"></i>
-                <input type="password" id="login-password" placeholder="Clave de acceso" required
-                    style="width: 100%; padding: 22px 20px 22px 60px; border: 2px solid transparent; border-radius: 18px; 
-                    background: #e0e5ea; color: #2c3e50; outline: none; font-size: 1rem;
-                    font-weight: 700; box-shadow: inset 8px 8px 16px #9eaab6, inset -8px -8px 16px #ffffff; transition: 0.3s;">
-            </div>
-
-            <button type="button" id="btn-login-submit" 
-                style="width: 100%; padding: 22px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); 
-                color: white; border: none; border-radius: 18px; font-weight: 800; cursor: pointer; 
-                letter-spacing: 3px; text-transform: uppercase; font-size: 1.1rem;
-                box-shadow: 0 5px 0 #004494, 0 10px 30px rgba(0, 123, 255, 0.3); transition: 0.2s;">
-                INGRESAR
-            </button>
-        </form>
-        
-        <div id="login-error" style="margin-top: 30px; font-size: 0.95rem; font-weight: 800; min-height: 25px; opacity: 0; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(10px);"></div>
+    <!-- Fondo contable: rejilla tipo libro mayor + franjas diagonales + marcas de agua -->
+    <div class="ol-bg-grid"></div>
+    <div class="ol-stripe ol-stripe-1"></div>
+    <div class="ol-stripe ol-stripe-2"></div>
+    <div class="ol-wm ol-wm-1">$</div>
+    <div class="ol-wm ol-wm-2">%</div>
+    <div class="ol-wm ol-wm-3">&#8721;</div>
+    <div class="ol-ledger">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
     </div>
+
+    <div class="ol-card">
+        <img class="ol-logo" src="assets/omnicore-logo.png" alt="OMNI CORE">
+
+        <form id="login-form" autocomplete="on">
+            <div class="ol-input">
+                <i class="fas fa-user"></i>
+                <input type="text" id="login-usuario" placeholder="Usuario" autocomplete="username" required>
+            </div>
+            <div class="ol-input">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password" required>
+            </div>
+            <button type="button" id="btn-login-submit">Ingresar</button>
+        </form>
+
+        <div id="login-error"></div>
+    </div>
+
+    <!-- Powered by CasRodsoft Development -->
+    <div class="ol-powered">
+        <svg viewBox="0 0 40 40" width="22" height="22" aria-hidden="true">
+            <rect x="2" y="2" width="36" height="36" rx="9" fill="none" stroke="currentColor" stroke-width="2.5"/>
+            <path d="M27 13a9 9 0 1 0 0 14" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M17 20l5-4v8z" fill="currentColor"/>
+        </svg>
+        <span>Powered by <b>CasRodsoft&nbsp;Development</b></span>
+    </div>
+
+    <div class="ol-version">v4.5</div>
 </div>
 
+<style>
+    .omni-login {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        background:
+            radial-gradient(1200px 780px at 12% -12%, #17406f 0%, transparent 55%),
+            radial-gradient(1000px 680px at 105% 118%, #123a68 0%, transparent 52%),
+            linear-gradient(155deg, #0a1523 0%, #0e1f38 48%, #0b1930 100%);
+    }
+
+    /* Rejilla fina tipo hoja contable */
+    .ol-bg-grid {
+        position: absolute; inset: 0; pointer-events: none;
+        background-image:
+            linear-gradient(rgba(120,170,235,.055) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(120,170,235,.045) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(circle at 50% 45%, #000 0%, #000 55%, transparent 95%);
+    }
+
+    /* Columnas de "libro mayor" al pie */
+    .ol-ledger {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
+        display: flex; justify-content: space-around; pointer-events: none; opacity: .5;
+    }
+    .ol-ledger span {
+        width: 1px; height: 100%;
+        background: linear-gradient(to top, rgba(95,160,240,.28), transparent);
+    }
+
+    /* Franjas diagonales con vida */
+    .ol-stripe {
+        position: absolute; pointer-events: none; filter: blur(2px);
+        transform: rotate(-18deg);
+    }
+    .ol-stripe-1 {
+        width: 160%; height: 130px; left: -30%; top: 16%;
+        background: linear-gradient(90deg, transparent, rgba(47,123,230,.20), rgba(47,123,230,.05), transparent);
+        animation: olslide 14s ease-in-out infinite alternate;
+    }
+    .ol-stripe-2 {
+        width: 160%; height: 70px; left: -30%; bottom: 12%;
+        background: linear-gradient(90deg, transparent, rgba(120,200,255,.14), transparent);
+        animation: olslide 18s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes olslide { from { transform: translateX(-4%) rotate(-18deg); } to { transform: translateX(4%) rotate(-18deg); } }
+
+    /* Marcas de agua de símbolos financieros */
+    .ol-wm {
+        position: absolute; pointer-events: none; font-weight: 900;
+        color: rgba(120,175,240,.06); line-height: 1; user-select: none;
+    }
+    .ol-wm-1 { font-size: 30rem; left: -3rem; top: -6rem; }
+    .ol-wm-2 { font-size: 18rem; right: 2rem; bottom: -3rem; }
+    .ol-wm-3 { font-size: 22rem; right: 34%; top: 40%; color: rgba(120,175,240,.045); }
+
+    /* Tarjeta */
+    .ol-card {
+        position: relative; z-index: 3;
+        width: 440px; max-width: 90vw;
+        background: #ffffff;
+        border-radius: 22px;
+        padding: 44px 44px 40px;
+        box-shadow: 0 34px 80px rgba(0, 0, 0, .5);
+        text-align: center;
+    }
+    .ol-logo {
+        width: 340px; max-width: 100%;
+        margin: 4px auto 30px; display: block;
+        filter: drop-shadow(0 8px 22px rgba(20, 45, 80, .22));
+    }
+
+    #login-form { display: flex; flex-direction: column; gap: 14px; }
+    .ol-input {
+        display: flex; align-items: center; gap: 11px;
+        background: #f4f7fb; border: 1px solid #e2e8f1; border-radius: 12px; padding: 0 15px;
+        transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .ol-input:focus-within { background: #fff; border-color: #2f7be6; box-shadow: 0 0 0 3px rgba(47, 123, 230, .13); }
+    .ol-input i { color: #9aa7b6; font-size: .9rem; }
+    .ol-input input {
+        flex: 1; border: none; background: transparent; outline: none;
+        padding: 15px 0; font-size: .95rem; font-weight: 600; color: #16283c;
+    }
+    .ol-input input::placeholder { color: #a7b1bf; font-weight: 500; }
+
+    #btn-login-submit {
+        margin-top: 8px; padding: 15px; border: none; border-radius: 12px; cursor: pointer;
+        background: linear-gradient(135deg, #2f7be6, #1c5cbf); color: #fff;
+        font-weight: 800; font-size: .95rem; letter-spacing: 2px; text-transform: uppercase;
+        box-shadow: 0 10px 24px rgba(47, 123, 230, .32);
+        transition: transform .12s ease, box-shadow .12s ease;
+    }
+    #btn-login-submit:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(47, 123, 230, .42); }
+    #btn-login-submit:active { transform: translateY(0); }
+
+    #login-error { margin-top: 16px; min-height: 18px; font-size: .82rem; font-weight: 700; color: #e04848; }
+
+    .ol-powered {
+        position: absolute; z-index: 3; left: 0; right: 0; bottom: 22px;
+        display: flex; align-items: center; justify-content: center; gap: 9px;
+        color: rgba(190, 214, 240, .5); font-size: .74rem; letter-spacing: .4px;
+    }
+    .ol-powered b { color: rgba(215, 231, 248, .78); font-weight: 800; letter-spacing: 1px; }
+
+    .ol-version {
+        position: absolute; z-index: 3; bottom: 18px; right: 22px;
+        font-size: .68rem; font-weight: 700; letter-spacing: 2px; color: rgba(255, 255, 255, .28);
+    }
+
+    @media (max-height: 640px) { .ol-logo { margin-bottom: 20px; width: 270px; } .ol-card { padding: 30px 36px 28px; } }
+</style>

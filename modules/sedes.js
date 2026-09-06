@@ -8,12 +8,9 @@ const SedesModule = {
 
     init() {
         console.log("SedesModule: Inicializando infraestructura...");
+        window.SedesModule = this;
         this.listarSedes();
         this.setupForm();
-        window.SedesModule = this;
-
-        window.actualizarEstadoBot();
-        window._botEstadoInterval = setInterval(window.actualizarEstadoBot, 5000);
     },
 
     async listarSedes() {
@@ -52,9 +49,12 @@ const SedesModule = {
                     <td>${s.Ciudad || 'N/A'}</td>
                     <td>${s.MonedaSimbolo || '$'} / ${s.ImpuestoPorcentaje}%</td>
                     <td><span class="status-pill ${estadoClass}">${estadoTexto}</span></td>
-                    <td style="text-align: center;">
-                        <button onclick="SedesModule.editarSede(${s.SedeID})" class="btn-neo" style="padding:8px 12px; display:inline-flex;">
+                    <td style="text-align: center; white-space:nowrap;">
+                        <button onclick="SedesModule.editarSede(${s.SedeID})" class="btn-neo" style="padding:8px 12px; display:inline-flex;" title="Datos fiscales">
                             <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="SedesModule.abrirConfig(${s.SedeID})" class="btn-neo" style="padding:8px 12px; display:inline-flex;" title="Pagos e impresión">
+                            <i class="fas fa-sliders"></i>
                         </button>
                     </td>
                 </tr>`;
@@ -154,7 +154,7 @@ const SedesModule = {
         }
 
         if(document.getElementById('sedeId')) document.getElementById('sedeId').value = datos ? datos.SedeID : '';
-        if(document.getElementById('modalSedeTitle')) document.getElementById('modalSedeTitle').innerText = datos ? 'MODIFICAR ESTABLECIMIENTO' : 'NUEVO ESTABLECIMIENTO';
+        if(document.getElementById('modalSedeTitle')) document.getElementById('modalSedeTitle').innerText = datos ? 'MODIFICAR EMPRESA' : 'NUEVA EMPRESA';
 
         let lat = -0.1807;
         let lng = -78.4678;
@@ -296,74 +296,207 @@ const SedesModule = {
     }
 };
 
-// --- ESTADO Y REINICIO DEL BOT DE WHATSAPP ---
-// Vive acá (módulo externo, cargado una sola vez al navegar a esta vista)
-// y no en un <script> inline dentro de views/sedes.html, porque
-// App.renderView() inserta las vistas vía innerHTML — los navegadores
-// nunca ejecutan <script> insertados así.
-const BOT_ESTADOS = {
-    conectado:      { texto: 'Conectado',                dot: 'verde' },
-    iniciando:      { texto: 'Iniciando...',             dot: 'amarillo' },
-    reiniciando:    { texto: 'Reiniciando...',           dot: 'amarillo' },
-    reconectando:   { texto: 'Reconectando...',          dot: 'amarillo' },
-    esperando_qr:   { texto: 'Requiere escanear QR',      dot: 'rojo' }
-};
+// ============================================================
+//  CONFIGURACIÓN POR EMPRESA — Pagos e impresión
+//  Modal independiente al de datos fiscales. Se inyecta una vez.
+// ============================================================
+const OMNI_SEDECONFIG_KEYS = [
+    'PASARELA_ACTIVA',
+    'PAYPHONE_TOKEN', 'PAYPHONE_STORE_ID', 'PAYPHONE_MODO',
+    'DEUNA_MODO', 'DEUNA_QR_ESTATICO_PAYLOAD', 'DEUNA_API_KEY', 'DEUNA_SECRET', 'DEUNA_WEBHOOK_SECRET',
+    'STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_MODO',
+    'IMPRESORA_NOMBRE', 'IMPRESORA_ANCHO', 'IMPRESORA_AUTO', 'IMPRESORA_COPIAS',
+    'TICKET_ENCABEZADO', 'TICKET_PIE', 'TICKET_MOSTRAR_LOGO',
+    'MANTENIMIENTO_AREAS'
+];
 
-window.actualizarEstadoBot = async function () {
-    const txtEl = document.getElementById('bot-estado-texto');
-    const dbEl = document.getElementById('bot-db-texto');
-    const qrCard = document.getElementById('bot-qr-card');
-    const qrImg = document.getElementById('bot-qr-img');
-    if (!txtEl || !dbEl) {
-        clearInterval(window._botEstadoInterval);
-        return;
-    }
+Object.assign(SedesModule, {
 
-    try {
-        const resp = (await api.get('/whatsapp/estado')).data;
-        if (resp.status !== 'OK') return; // error puntual, se reintenta en el próximo ciclo
+    _ensureConfigModal() {
+        if (document.getElementById('modalSedeConfig')) return;
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+        <div id="modalSedeConfig" class="omni-cfg-bg" style="display:none;">
+          <div class="omni-cfg">
+            <div class="omni-cfg-head">
+              <h3><i class="fas fa-sliders"></i> Pagos e impresión — <span id="cfg-sede-nom"></span></h3>
+              <button onclick="SedesModule.cerrarConfig()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="omni-cfg-body">
+              <input type="hidden" id="cfg-sede-id">
 
-        const info = BOT_ESTADOS[resp.estadoBot] || { texto: resp.estadoBot, dot: 'gris' };
-        txtEl.innerHTML = `<span class="bot-dot bot-dot-${info.dot}"></span> ${info.texto}`;
-        dbEl.innerHTML = resp.dbOk
-            ? '<i class="fas fa-check-circle" style="color:#22c55e"></i> Base de datos OK'
-            : '<i class="fas fa-times-circle" style="color:#ef4444"></i> Base de datos sin respuesta';
+              <h4>Pasarela de pago</h4>
+              <label>Pasarela activa
+                <select id="cfg-PASARELA_ACTIVA" onchange="SedesModule._cfgToggle()">
+                  <option value="">Ninguna</option>
+                  <option value="PAYPHONE">Payphone</option>
+                  <option value="STRIPE">Stripe</option>
+                  <option value="DEUNA">DeUna</option>
+                </select>
+              </label>
 
-        if (resp.estadoBot === 'esperando_qr' && resp.qr && qrCard && qrImg) {
-            qrImg.src = resp.qr;
-            qrCard.style.display = 'flex';
-        } else if (qrCard) {
-            qrCard.style.display = 'none';
-        }
-    } catch (e) { /* error de red puntual, se reintenta en el próximo ciclo */ }
-};
+              <div id="cfg-grp-payphone" class="omni-cfg-grp">
+                <label>Modo
+                  <select id="cfg-PAYPHONE_MODO">
+                    <option value="link">API Link (URL + QR)</option>
+                    <option value="cajita">Cajita de pagos (web)</option>
+                  </select>
+                </label>
+                <label>Token (Bearer) <input type="password" id="cfg-PAYPHONE_TOKEN" placeholder="••••••••" autocomplete="off"></label>
+                <label>Store ID <input type="text" id="cfg-PAYPHONE_STORE_ID" autocomplete="off"></label>
+              </div>
 
-window.reiniciarBotWhatsapp = function () {
-    Swal.fire({
-        title: '¿Reiniciar el bot de WhatsApp?',
-        text: 'Se cerrará y volverá a abrir la sesión. Tarda unos segundos y solo hace falta si el bot dejó de responder.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, reiniciar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#1a365d'
-    }).then((result) => {
-        if (!result.isConfirmed) return;
+              <div id="cfg-grp-deuna" class="omni-cfg-grp">
+                <label>Modo de QR
+                  <select id="cfg-DEUNA_MODO">
+                    <option value="estatico">QR estático (fijo del local, cliente digita monto)</option>
+                    <option value="dinamico">QR dinámico (API, monto automático)</option>
+                  </select>
+                </label>
+                <label>Payload del QR estático
+                  <textarea id="cfg-DEUNA_QR_ESTATICO_PAYLOAD" rows="2" placeholder="Texto/URL que codifica el QR fijo entregado por DeUna"></textarea>
+                </label>
+                <label>API Key <input type="password" id="cfg-DEUNA_API_KEY" placeholder="••••••••" autocomplete="off"></label>
+                <label>Secret <input type="password" id="cfg-DEUNA_SECRET" placeholder="••••••••" autocomplete="off"></label>
+                <label>Webhook Secret <input type="password" id="cfg-DEUNA_WEBHOOK_SECRET" placeholder="••••••••" autocomplete="off"></label>
+              </div>
 
-        const btn = document.getElementById('btn-reiniciar-bot');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reiniciando...'; }
+              <div id="cfg-grp-stripe" class="omni-cfg-grp">
+                <label>Modo
+                  <select id="cfg-STRIPE_MODO">
+                    <option value="test">Test (sk_test_…)</option>
+                    <option value="live">Producción (sk_live_…)</option>
+                  </select>
+                </label>
+                <label>Secret Key <input type="password" id="cfg-STRIPE_SECRET_KEY" placeholder="sk_live_… / sk_test_…" autocomplete="off"></label>
+                <label>Publishable Key <input type="text" id="cfg-STRIPE_PUBLISHABLE_KEY" placeholder="pk_…" autocomplete="off"></label>
+                <label>Webhook Secret <input type="password" id="cfg-STRIPE_WEBHOOK_SECRET" placeholder="whsec_…" autocomplete="off"></label>
+              </div>
 
-        api.post('/whatsapp/reiniciar', {}).then(res => {
-            if (res.data.status !== 'OK') {
-                Swal.fire('Error', res.data.message || 'No se pudo reiniciar el bot.', 'error');
-            }
-        }).catch(e => {
-            Swal.fire('Error', e.response?.data?.message || e.message, 'error');
-        }).finally(() => {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate-right"></i> Reiniciar Bot'; }
-            window.actualizarEstadoBot();
+              <h4>Impresora térmica</h4>
+              <label>Impresora
+                <span style="display:flex;gap:8px">
+                  <input type="text" id="cfg-IMPRESORA_NOMBRE" list="cfg-impresoras" placeholder="Nombre tal como aparece en Windows" style="flex:1">
+                  <button type="button" class="omni-cfg-mini" onclick="SedesModule.detectarImpresoras()">Detectar</button>
+                </span>
+              </label>
+              <datalist id="cfg-impresoras"></datalist>
+              <div class="omni-cfg-row2">
+                <label>Ancho de papel
+                  <select id="cfg-IMPRESORA_ANCHO"><option value="80">80 mm</option><option value="58">58 mm</option></select>
+                </label>
+                <label>Copias <input type="number" id="cfg-IMPRESORA_COPIAS" min="1" value="1"></label>
+              </div>
+              <label class="omni-cfg-chk"><input type="checkbox" id="cfg-IMPRESORA_AUTO"> Imprimir automáticamente al cerrar una venta</label>
+              <label class="omni-cfg-chk"><input type="checkbox" id="cfg-TICKET_MOSTRAR_LOGO"> Mostrar el logo de la empresa en el ticket</label>
+              <label>Encabezado del ticket <input type="text" id="cfg-TICKET_ENCABEZADO" placeholder="Gracias por su compra"></label>
+              <label>Pie del ticket <input type="text" id="cfg-TICKET_PIE" placeholder="Documento sin valor tributario"></label>
+
+              <h4>Operación</h4>
+              <label>Áreas para órdenes de mantenimiento (separadas por coma)
+                <textarea id="cfg-MANTENIMIENTO_AREAS" rows="2" placeholder="Instalaciones, Equipos / Maquinaria, Tecnología / Sistemas, Mobiliario, Vehículos, Bodega / Almacén"></textarea>
+              </label>
+            </div>
+            <div class="omni-cfg-foot">
+              <button class="omni-cfg-ghost" onclick="SedesModule.cerrarConfig()">Cancelar</button>
+              <button class="omni-cfg-save" onclick="SedesModule.guardarConfig()"><i class="fas fa-save"></i> Guardar configuración</button>
+            </div>
+          </div>
+        </div>
+        <style>
+          .omni-cfg-bg{position:fixed;inset:0;background:rgba(12,22,38,.6);display:flex;align-items:center;justify-content:center;z-index:3000;font-family:'Inter','Segoe UI',sans-serif}
+          .omni-cfg{background:#fff;border-radius:16px;width:min(560px,94vw);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(0,0,0,.4)}
+          .omni-cfg-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #eef1f5}
+          .omni-cfg-head h3{margin:0;font-size:1rem;font-weight:900;color:#1a365d;letter-spacing:.5px}
+          .omni-cfg-head h3 i{color:#2f7be6;margin-right:8px}
+          .omni-cfg-head button{border:none;background:#eef1f5;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#5a6b7d}
+          .omni-cfg-body{padding:18px 22px;overflow-y:auto}
+          .omni-cfg-body h4{margin:16px 0 10px;font-size:.7rem;font-weight:900;letter-spacing:1.5px;color:#5a6b7d;text-transform:uppercase}
+          .omni-cfg-body h4:first-child{margin-top:0}
+          .omni-cfg-body label{display:block;font-size:.72rem;font-weight:800;color:#5a6b7d;text-transform:uppercase;letter-spacing:.3px;margin-bottom:12px}
+          .omni-cfg-body input,.omni-cfg-body select,.omni-cfg-body textarea{width:100%;margin-top:5px;padding:9px 11px;border:1px solid #d5dce5;border-radius:9px;font-size:.82rem;font-family:inherit;color:#16283c;outline:none}
+          .omni-cfg-body input:focus,.omni-cfg-body select:focus,.omni-cfg-body textarea:focus{border-color:#2f7be6}
+          .omni-cfg-chk{display:flex !important;align-items:center;gap:8px;text-transform:none !important;font-weight:700 !important}
+          .omni-cfg-chk input{width:auto !important;margin:0 !important}
+          .omni-cfg-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+          .omni-cfg-grp{border-left:3px solid #e7edf5;padding-left:12px;margin-bottom:8px}
+          .omni-cfg-mini{border:1px solid #d5dce5;background:#f4f7fb;border-radius:8px;padding:0 12px;font-size:.72rem;font-weight:800;color:#2f7be6;cursor:pointer}
+          .omni-cfg-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid #eef1f5}
+          .omni-cfg-foot button{border:none;border-radius:10px;padding:10px 18px;font-weight:800;font-size:.8rem;cursor:pointer}
+          .omni-cfg-ghost{background:#e2e7ee;color:#5a6b7d}
+          .omni-cfg-save{background:#2f7be6;color:#fff}
+        </style>`;
+        document.body.appendChild(wrap);
+    },
+
+    _cfgToggle() {
+        const v = (document.getElementById('cfg-PASARELA_ACTIVA').value || '').toUpperCase();
+        document.getElementById('cfg-grp-payphone').style.display = v === 'PAYPHONE' ? '' : 'none';
+        document.getElementById('cfg-grp-deuna').style.display = v === 'DEUNA' ? '' : 'none';
+        const st = document.getElementById('cfg-grp-stripe');
+        if (st) st.style.display = v === 'STRIPE' ? '' : 'none';
+    },
+
+    async abrirConfig(id) {
+        const sede = this.sedes.find(s => s.SedeID === id);
+        this._ensureConfigModal();
+        document.getElementById('cfg-sede-id').value = id;
+        document.getElementById('cfg-sede-nom').textContent = sede ? sede.NombreComercial : `Sede ${id}`;
+        // limpiar
+        OMNI_SEDECONFIG_KEYS.forEach(k => {
+            const el = document.getElementById('cfg-' + k);
+            if (!el) return;
+            if (el.type === 'checkbox') el.checked = false; else el.value = '';
         });
-    });
-};
+        try {
+            const r = await api.get(`/sedeconfig?sedeId=${id}`);
+            const c = r.data.config || {};
+            OMNI_SEDECONFIG_KEYS.forEach(k => {
+                const el = document.getElementById('cfg-' + k);
+                if (!el || c[k] === undefined) return;
+                if (el.type === 'checkbox') el.checked = c[k] === '1' || c[k] === true;
+                else el.value = c[k];
+            });
+        } catch (e) {
+            if (window.Toast) window.Toast.fire({ icon: 'error', title: 'No se pudo cargar la configuración' });
+        }
+        this._cfgToggle();
+        document.getElementById('modalSedeConfig').style.display = 'flex';
+    },
+
+    cerrarConfig() {
+        const m = document.getElementById('modalSedeConfig');
+        if (m) m.style.display = 'none';
+    },
+
+    async detectarImpresoras() {
+        try {
+            const { ipcRenderer } = require('electron');
+            const lista = await ipcRenderer.invoke('omni:list-printers');
+            const dl = document.getElementById('cfg-impresoras');
+            dl.innerHTML = (lista || []).map(p => `<option value="${p.name}">${p.displayName || p.name}</option>`).join('');
+            if (window.Toast) window.Toast.fire({ icon: 'success', title: `${(lista || []).length} impresora(s) detectada(s)` });
+        } catch (e) {
+            if (window.Toast) window.Toast.fire({ icon: 'info', title: 'Escribe el nombre de la impresora manualmente' });
+        }
+    },
+
+    async guardarConfig() {
+        const id = parseInt(document.getElementById('cfg-sede-id').value);
+        const config = {};
+        OMNI_SEDECONFIG_KEYS.forEach(k => {
+            const el = document.getElementById('cfg-' + k);
+            if (!el) return;
+            config[k] = el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value.trim();
+        });
+        try {
+            await api.put('/sedeconfig', { SedeID: id, config });
+            this.cerrarConfig();
+            if (window.Toast) window.Toast.fire({ icon: 'success', title: 'Configuración guardada' });
+        } catch (e) {
+            if (window.Toast) window.Toast.fire({ icon: 'error', title: e.response?.data?.error || 'Error al guardar' });
+        }
+    }
+});
 
 module.exports = SedesModule;

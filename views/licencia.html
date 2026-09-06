@@ -1,0 +1,66 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-key"></i> LICENCIA Y ACTUALIZACIONES</h2>
+                <p class="omni-sub">Estado de la licencia, actualizaciones y conexión al servidor</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="lic-card" class="lic-card">Cargando…</div>
+
+    <!-- Solo visible para el usuario "soporte" del proveedor (edición SaaS) -->
+    <div id="lic-gestion" class="lic-box" style="display:none">
+        <h4>Vigencia de esta empresa (solo proveedor)</h4>
+        <p class="omni-sub" style="margin:0 0 10px">Fija hasta cuándo puede operar esta empresa. Vacío = sin vencimiento.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input id="lic-vig-fecha" type="date" class="omni-input" style="width:180px;font-family:inherit">
+            <button class="omni-btn omni-btn-primary" onclick="LicenciaModule.fijarVigencia('fecha')"><i class="fas fa-check"></i> Guardar fecha</button>
+            <button class="omni-btn" onclick="LicenciaModule.fijarVigencia('mas30')"><i class="fas fa-plus"></i> +30 días</button>
+            <button class="omni-btn" onclick="LicenciaModule.fijarVigencia('sinvenc')"><i class="fas fa-infinity"></i> Sin vencimiento</button>
+        </div>
+    </div>
+
+    <div class="lic-box">
+        <h4>Actualización del servidor (backend)</h4>
+        <div id="upd-body" class="omni-sub">Comprobando…</div>
+        <button class="omni-btn" style="margin-top:10px" onclick="LicenciaModule.buscarActualizacion()"><i class="fas fa-rotate"></i> Buscar actualización</button>
+    </div>
+
+    <div class="lic-box">
+        <h4>Actualización de esta aplicación (escritorio)</h4>
+        <div id="upd-app-body" class="omni-sub">Comprobando…</div>
+        <button class="omni-btn" style="margin-top:10px" onclick="LicenciaModule.buscarActualizacionApp()"><i class="fas fa-rotate"></i> Buscar actualización de la app</button>
+        <p class="omni-sub" style="margin-top:8px">La app se actualiza sola: al abrir busca una versión nueva, la descarga en segundo plano y te avisa cuando esté lista para reiniciar.</p>
+    </div>
+
+    <div class="lic-box">
+        <h4>Dirección del servidor</h4>
+        <div id="srv-body" class="omni-sub">Cargando…</div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <input id="srv-address" class="omni-input" style="flex:1;min-width:180px;font-family:inherit" placeholder="IP o dominio (ej: 192.168.1.50 ó contabilidad.miempresa.com)">
+            <input id="srv-port" class="omni-input" style="width:110px;font-family:inherit" placeholder="Puerto" value="3636">
+            <button class="omni-btn omni-btn-primary" onclick="LicenciaModule.guardarServidor()"><i class="fas fa-server"></i> Guardar y reiniciar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; }
+    .omni-input { width:100%; padding:10px 12px; border:1px solid #d5dce5; border-radius:10px; font-size:.8rem; background:#fff; box-sizing:border-box; font-family:Consolas,monospace; }
+    .lic-card { background:#fff; border-radius:14px; padding:18px 22px; margin-bottom:16px; box-shadow:0 4px 14px rgba(30,50,80,.07); }
+    .lic-box { background:#fff; border-radius:14px; padding:18px 22px; margin-bottom:16px; box-shadow:0 4px 14px rgba(30,50,80,.07); }
+    .lic-box h4 { margin:0 0 6px; color:#1a365d; font-size:.85rem; text-transform:uppercase; letter-spacing:.5px; }
+    .lic-pill { padding:4px 12px; border-radius:20px; font-size:.68rem; font-weight:900; text-transform:uppercase; }
+    .lic-ok { background:#dcfce7; color:#166534; } .lic-bad { background:#fee2e2; color:#991b1b; }
+    .lic-warn { background:#fef3c7; color:#92400e; }
+</style>

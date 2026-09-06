@@ -384,7 +384,8 @@ const InventarioModule = {
                 TipoItem: document.getElementById('tipoProd')?.value || 'VENTA',
                 StockMinimo: parseInt(document.getElementById('minProd')?.value || 0),
                 StockIdeal: parseInt(document.getElementById('idealProd')?.value || 0),
-                CodigoBarras: document.getElementById('barraProd')?.value || null
+                CodigoBarras: document.getElementById('barraProd')?.value || null,
+                GravaIVA: document.getElementById('gravaIvaProd')?.checked !== false
             };
 
             try {
@@ -416,6 +417,8 @@ const InventarioModule = {
         document.getElementById('minProd').value = p.StockMinimo;
         document.getElementById('idealProd').value = p.StockIdeal;
         document.getElementById('barraProd').value = p.CodigoBarras || '';
+        const gi = document.getElementById('gravaIvaProd');
+        if (gi) gi.checked = !(p.GravaIVA === false || p.GravaIVA === 0);
 
         document.getElementById('modalProducto').classList.remove('hidden');
     },
