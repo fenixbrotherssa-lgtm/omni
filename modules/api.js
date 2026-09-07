@@ -127,13 +127,16 @@ api.interceptors.response.use(
         const data = error.response?.data || {};
 
         // 402 fuera del login:
-        //  · SaaS -> la suscripción de la empresa venció (lo detecta /auth/refresh).
-        //  · Local -> el soporte anual venció / se suspendió (licenciaMiddleware).
-        // En ambos casos se cierra sesión y se manda al login.
+        //  · SaaS -> la SUSCRIPCIÓN de la cuenta venció o está suspendida.
+        //  · Local -> solo ANTES de la primera activación de la licencia.
+        //    (una vez activada, Local es perpetua y NUNCA da 402).
+        // Se cierra sesión y se manda al login.
         if (st === 402 && !config?.url?.includes('/auth/login')) {
             try {
                 if (typeof Swal !== 'undefined') {
-                    Swal.fire('Licencia no válida', data.mensaje || data.message || 'La licencia de OMNI CORE no es válida. Contacta a tu proveedor.', 'warning');
+                    Swal.fire('Suscripción vencida',
+                        data.mensaje || data.message || 'Suscripción vencida. Contacta a tu proveedor.',
+                        'warning');
                 }
             } catch (_) {}
             localStorage.clear();

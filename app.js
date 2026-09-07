@@ -223,10 +223,13 @@ const App = {
                 ['sedes', 'Empresas', 'fa-building', true],
                 ['respaldos', 'Respaldos', 'fa-database', true],
                 ['licencia', 'Licencia', 'fa-key', true],
+                ['cuentas-saas', 'Cuentas SaaS', 'fa-building-user', 'sop'],
+                ['licencias-local', 'Licencias Local', 'fa-key', 'sop'],
                 ['auditoria', 'Auditoría', 'fa-shield-halved', true] ] }
         ];
+        const soporte = !!(this.user && this.user.EsSoporte);
         const navHtml = nav.map(g => {
-            const its = g.items.filter(it => !it[3] || admin);
+            const its = g.items.filter(it => it[3] === 'sop' ? soporte : (!it[3] || admin));
             if (!its.length) return '';
             return `<div class="omni-nav-grp"><span>${g.grupo}</span>${its.map(([v, label, ic]) =>
                 `<a class="omni-nav-link" data-view="${v}" onclick="App.renderView('${v}','viewport')"><i class="fas ${ic}"></i>${label}</a>`).join('')}</div>`;
@@ -319,7 +322,7 @@ const App = {
         try {
             const r = await api.get('/licencia');
             const d = r.data;
-            if (d.edicion !== 'saas' || d.sinVencimiento || d.vigenciaHasta == null) { el.innerHTML = ''; return; }
+            if (d.edicion !== 'saas' || d.sinVencimiento || d.pagadoHasta == null) { el.innerHTML = ''; return; }
 
             const dias = d.diasRestantes;
             const texto = dias >= 0 ? `Vence en ${dias} día${dias === 1 ? '' : 's'}` : `Venció hace ${-dias} día${dias === -1 ? '' : 's'}`;

@@ -3,8 +3,8 @@
         <div class="omni-head-l">
             <button class="omni-btn omni-btn-ghost" onclick="App.renderView('licencia','viewport')"><i class="fas fa-chevron-left"></i></button>
             <div>
-                <h2><i class="fas fa-key"></i> LICENCIAS — INSTALACIONES LOCAL</h2>
-                <p class="omni-sub">Soporte anual de los clientes con OMNI CORE instalado en su propio servidor</p>
+                <h2><i class="fas fa-key"></i> LICENCIAS LOCAL</h2>
+                <p class="omni-sub">Clientes con OMNI CORE instalado en su propio servidor · licencia perpetua + mantenimiento</p>
             </div>
         </div>
         <button class="omni-btn omni-btn-primary" onclick="LicLocalModule.nueva()"><i class="fas fa-plus"></i> Nueva licencia</button>
@@ -12,18 +12,18 @@
 
     <div id="lic-local-aviso" class="lic-box" style="display:none;margin-bottom:14px;border-left:4px solid #e0a800;background:#fffbeb">
         <p class="omni-sub" style="margin:0;color:#92400e">
-            <b>Esta instancia NO es la autoridad de licencias.</b> Las claves que crees aquí no responderán a los
-            check-in de los clientes. Para que funcionen, esta debe ser la instancia detrás de
-            <b>omnicore.casrodsoft.com</b> con <code>LICENSE_AUTHORITY=1</code> en su <code>.env</code>.
+            <b>Esta instancia NO es la autoridad de licencias.</b> Las claves que crees aquí no responderán a
+            las activaciones de los clientes. Para que funcionen, esta debe ser la instancia detrás de
+            <b>omnicore.casrodsoft.com</b> con <code>LICENSE_AUTHORITY=1</code> y <code>LICENSE_SIGN_PRIVATE_KEY</code> en su <code>.env</code>.
         </p>
     </div>
 
     <div class="lic-box" style="margin-bottom:14px">
         <p class="omni-sub" style="margin:0">
-            Cada fila es una instalación Local. El backend del cliente hace check-in cada 12&nbsp;h contra
-            <b>omnicore.casrodsoft.com</b>. Si el soporte vence o suspendes la licencia, esa instalación bloquea
-            <b>solo la aplicación</b> (nunca la base de datos). La clave se amarra al primer servidor donde se activa;
-            usa <b>Liberar máquina</b> si el cliente cambia de servidor.
+            Cada fila es una instalación Local. Al primer arranque el servidor del cliente se activa UNA vez
+            y recibe un permiso <b>perpetuo firmado</b> (amarrado a esa máquina). <b>Nunca se bloquea.</b> Lo único
+            que hace cumplir es el tope de <b>N empresas activas</b>. Si el <b>mantenimiento</b> vence, la app deja de
+            ofrecer actualizaciones — nada más. Renueva la fecha de mantenimiento cuando el cliente paga.
         </p>
     </div>
 

@@ -13,30 +13,19 @@
 
     <div id="lic-empresas" class="omni-sub" style="margin:-8px 0 16px 4px"></div>
 
-    <div class="lic-box">
-        <h4>Soporte anual (servidor de licencias)</h4>
+    <!-- Estado del enlace con el servidor de licencias (solo Local) -->
+    <div id="lic-box-local" class="lic-box" style="display:none">
+        <h4>Servidor de licencias</h4>
         <div id="lic-remota" class="omni-sub">Comprobando…</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-            <button class="omni-btn" onclick="LicenciaModule.verificarRemota()"><i class="fas fa-rotate"></i> Verificar ahora</button>
-            <button id="lic-btn-panel" class="omni-btn" style="display:none" onclick="App.renderView('licencias-local','viewport')"><i class="fas fa-list"></i> Instalaciones Local</button>
-        </div>
+        <button class="omni-btn" style="margin-top:10px" onclick="LicenciaModule.verificarRemota()"><i class="fas fa-rotate"></i> Sincronizar ahora</button>
     </div>
 
-    <!-- Solo visible para el usuario "soporte" del proveedor (edición SaaS) -->
-    <div id="lic-gestion" class="lic-box" style="display:none">
-        <h4>Vigencia de esta empresa (solo proveedor)</h4>
-        <p class="omni-sub" style="margin:0 0 10px">Fija hasta cuándo puede operar esta empresa. Vacío = sin vencimiento.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input id="lic-vig-fecha" type="date" class="omni-input" style="width:180px;font-family:inherit">
-            <button class="omni-btn omni-btn-primary" onclick="LicenciaModule.fijarVigencia('fecha')"><i class="fas fa-check"></i> Guardar fecha</button>
-            <button class="omni-btn" onclick="LicenciaModule.fijarVigencia('mas30')"><i class="fas fa-plus"></i> +30 días</button>
-            <button class="omni-btn" onclick="LicenciaModule.fijarVigencia('sinvenc')"><i class="fas fa-infinity"></i> Sin vencimiento</button>
-        </div>
-        <h4 style="margin-top:18px">Tope de empresas de esta cuenta (solo proveedor)</h4>
-        <p class="omni-sub" style="margin:0 0 10px">Máximo de empresas que puede crear este cliente SaaS. Vacío = sin tope.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input id="lic-maxemp" type="number" min="1" class="omni-input" style="width:120px;font-family:inherit" placeholder="Sin tope">
-            <button class="omni-btn omni-btn-primary" onclick="LicenciaModule.fijarMaxEmpresas()"><i class="fas fa-check"></i> Guardar tope</button>
+    <!-- Paneles del proveedor (solo usuario "soporte") -->
+    <div id="lic-box-panel" class="lic-box" style="display:none">
+        <h4>Gestión (solo proveedor)</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="lic-btn-cuentas" class="omni-btn omni-btn-primary" style="display:none" onclick="App.renderView('cuentas-saas','viewport')"><i class="fas fa-building"></i> Cuentas SaaS</button>
+            <button id="lic-btn-local" class="omni-btn omni-btn-primary" style="display:none" onclick="App.renderView('licencias-local','viewport')"><i class="fas fa-list"></i> Licencias Local</button>
         </div>
     </div>
 

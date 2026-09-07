@@ -100,7 +100,8 @@ async function build() {
     console.log('========================================\n');
 
     limpiarDir(DIST_SRC);
-    limpiarDir(DIST_BIN);
+    // La 2a variante (local) NO debe borrar lo que dejo la 1a (saas).
+    if (process.env.OMNI_NO_CLEAN_DIST !== '1') limpiarDir(DIST_BIN);
     asegurarDir(DIST_SRC);
 
     console.log('Copiando recursos y modulos...');
@@ -131,15 +132,34 @@ async function build() {
         }
     }
 
-    // RED DE SEGURIDAD: copia config.js tal cual al paquete (sin ofuscar).
-    // Asi la app funciona aunque Inno Setup no lo coloque en resources.
-    const cfgSrc = path.join(ROOT, 'config.js');
-    if (fs.existsSync(cfgSrc)) {
-        fs.copyFileSync(cfgSrc, path.join(DIST_SRC, 'config.js'));
-        console.log('config.js incluido en el paquete.');
-    } else {
-        console.warn('AVISO: config.js no existe en la raiz, no se incluyo.');
+    // ── config.js segun la VARIANTE ────────────────────────────
+    //  OMNI_BUILD_TARGET = saas (por defecto) | local
+    //    saas  -> SERVER_ADDRESS pre-apuntado a omnicore.casrodsoft.com
+    //    local -> SERVER_ADDRESS = localhost (el cliente lo cambia con
+    //             el boton "Configurar servidor" del login)
+    //  Cada variante usa un CANAL de auto-update distinto para que un
+    //  update no le pise el SERVER_ADDRESS a la otra.
+    const TARGET = (process.env.OMNI_BUILD_TARGET || 'saas').toLowerCase();
+    const esLocal = TARGET === 'local';
+    const serverAddr = esLocal ? 'localhost' : 'omnicore.casrodsoft.com';
+    const configJs =
+`const CONFIG = {
+    ENV: 'production',
+    SERVER_ADDRESS: '${serverAddr}',
+    PORT: 3636,
+
+    getApiUrl() {
+        const isDomain = this.SERVER_ADDRESS.includes('.') && !/[0-9]$/.test(this.SERVER_ADDRESS);
+        const protocol = isDomain ? 'https' : 'http';
+        const suffix = isDomain ? '' : \`:\${this.PORT}\`;
+        return \`\${protocol}://\${this.SERVER_ADDRESS}\${suffix}/api\`;
     }
+};
+
+module.exports = CONFIG;
+`;
+    fs.writeFileSync(path.join(DIST_SRC, 'config.js'), configJs, 'utf8');
+    console.log(`config.js incluido (variante ${TARGET}, SERVER_ADDRESS=${serverAddr}).`);
 
     // ── Empaquetado con electron-builder ───────────────────────
     //  Windows -> instalador NSIS + electron-updater (latest.yml + .blockmap).
@@ -157,11 +177,15 @@ async function build() {
     const urlOverride = process.env.OMNI_UPDATE_URL
         ? ` -c.publish.url=${process.env.OMNI_UPDATE_URL}` : '';
     const outOverride = ' -c.directories.output=../dist';
+    // Variante Local: nombre de artefacto y canal de update propios.
+    const varOverride = esLocal
+        ? ' -c.nsis.artifactName=OMNI-CORE-Local-Setup-${version}.${ext} -c.publish.channel=omnicore-local'
+        : '';
 
-    console.log(`\nEmpaquetando con electron-builder (${PLATFORM}, publish: ${publish})...`);
+    console.log(`\nEmpaquetando con electron-builder (${PLATFORM}, variante ${TARGET}, publish: ${publish})...`);
     try {
         execSync(
-            `npx electron-builder ${flagPlataforma} --publish ${publish}${outOverride}${urlOverride}`,
+            `npx electron-builder ${flagPlataforma} --publish ${publish}${outOverride}${urlOverride}${varOverride}`,
             { stdio: 'inherit', cwd: DIST_SRC }
         );
         console.log('\nCOMPILACION electron-builder EXITOSA — revisa la carpeta dist/');
