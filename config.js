@@ -1,6 +1,6 @@
 const CONFIG = {
-    ENV: 'development',
-    SERVER_ADDRESS: 'omnicore.casrodsoft.com',
+    ENV: 'production',
+    SERVER_ADDRESS: 'localhost',
     PORT: 3636, // OMNI CORE backend
 
     getApiUrl() {

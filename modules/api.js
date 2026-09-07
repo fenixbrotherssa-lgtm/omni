@@ -126,21 +126,22 @@ api.interceptors.response.use(
         const st = error.response?.status;
         const data = error.response?.data || {};
 
-        // 402 fuera del login = la suscripción SaaS de la empresa venció
-        // mientras había sesión (lo detecta /auth/refresh). Cierra sesión
-        // y manda al login, donde se ve el mensaje al reintentar.
+        // 402 fuera del login:
+        //  · SaaS -> la suscripción de la empresa venció (lo detecta /auth/refresh).
+        //  · Local -> el soporte anual venció / se suspendió (licenciaMiddleware).
+        // En ambos casos se cierra sesión y se manda al login.
         if (st === 402 && !config?.url?.includes('/auth/login')) {
             try {
                 if (typeof Swal !== 'undefined') {
-                    Swal.fire('Suscripción vencida', data.message || 'La suscripción de esta empresa venció. Contacta a tu proveedor.', 'warning');
+                    Swal.fire('Licencia no válida', data.mensaje || data.message || 'La licencia de OMNI CORE no es válida. Contacta a tu proveedor.', 'warning');
                 }
             } catch (_) {}
             localStorage.clear();
             setTimeout(() => window.location.reload(), 2500);
         }
 
-        // 503 = la base de datos no responde (en Local suele ser licencia
-        // vencida gestionada por el proveedor a nivel de SQL Server).
+        // 503 = la base de datos no responde (SQL caído o autenticación
+        // rechazada). El licenciamiento de OMNI CORE no llega aquí: usa 402.
         if (st === 503 && (data.error === 'BASE_INACCESIBLE' || data.error === 'BASE_NO_DISPONIBLE')) {
             try {
                 if (typeof Swal !== 'undefined' && !window.__omniDbAviso) {

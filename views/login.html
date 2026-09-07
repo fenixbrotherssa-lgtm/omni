@@ -27,6 +27,10 @@
         </form>
 
         <div id="login-error"></div>
+
+        <button type="button" id="btn-login-servidor" class="ol-srvlink">
+            <i class="fas fa-server"></i> <span id="login-srv-txt">Configurar servidor</span>
+        </button>
     </div>
 
     <!-- Powered by CasRodsoft Development -->
@@ -145,6 +149,15 @@
     #btn-login-submit:active { transform: translateY(0); }
 
     #login-error { margin-top: 16px; min-height: 18px; font-size: .82rem; font-weight: 700; color: #e04848; }
+
+    .ol-srvlink {
+        margin-top: 6px; background: none; border: none; cursor: pointer;
+        color: #7c8ba0; font-size: .76rem; font-weight: 700; letter-spacing: .3px;
+        display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 8px;
+        transition: color .15s, background .15s;
+    }
+    .ol-srvlink:hover { color: #2f7be6; background: #f4f7fb; }
+    .ol-srvlink.ol-srv-bad { color: #e04848; }
 
     .ol-powered {
         position: absolute; z-index: 3; left: 0; right: 0; bottom: 22px;

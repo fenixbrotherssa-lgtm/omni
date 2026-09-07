@@ -58,11 +58,22 @@ const LicenciaModule = {
         try {
             const r = await api.get('/licencia');
             const d = r.data;
+            this._pintarLocal(d.local);
+
+            // Panel de instalaciones Local: solo en la instancia AUTORIDAD y para "soporte".
+            const btnPanel = document.getElementById('lic-btn-panel');
+            if (btnPanel) btnPanel.style.display = (d.puedeGestionar && d.esAutoridad) ? '' : 'none';
 
             if (d.edicion === 'local') {
                 el.innerHTML = `
                     <span class="lic-pill lic-ok">Edición Local</span>
                     <div style="margin-top:10px;font-size:.9rem">${d.mensaje}</div>`;
+                const empL = document.getElementById('lic-empresas');
+                if (empL) {
+                    if (d.maxEmpresas != null) empL.innerHTML = `Empresas permitidas por la licencia: <b>${d.empresas} / ${d.maxEmpresas}</b>`;
+                    else if (d.empresas != null) empL.innerHTML = `Empresas en esta instalación: <b>${d.empresas}</b> (sin tope)`;
+                    else empL.innerHTML = '';
+                }
                 return;
             }
 
@@ -84,14 +95,62 @@ const LicenciaModule = {
                     <div class="omni-sub" style="margin-top:6px;color:#c0392b;font-weight:700">La suscripción venció el ${d.vigenciaHasta}. Contacta a tu proveedor.</div>`;
             }
 
-            // Gestión de la fecha: SOLO para el usuario "soporte" del proveedor.
+            // Contador de empresas del plan.
+            const emp = document.getElementById('lic-empresas');
+            if (emp) {
+                if (d.maxEmpresas != null) emp.innerHTML = `Empresas del plan: <b>${d.empresas} / ${d.maxEmpresas}</b>`;
+                else if (d.empresas != null) emp.innerHTML = `Empresas de esta cuenta: <b>${d.empresas}</b> (sin tope)`;
+                else emp.innerHTML = '';
+            }
+
+            // Gestión: SOLO para el usuario "soporte" del proveedor.
             if (d.puedeGestionar && gest) {
                 gest.style.display = '';
                 const inp = document.getElementById('lic-vig-fecha');
                 if (inp && d.vigenciaHasta) inp.value = d.vigenciaHasta;
+                const mx = document.getElementById('lic-maxemp');
+                if (mx) mx.value = d.maxEmpresas != null ? d.maxEmpresas : '';
             }
         } catch (e) {
             el.innerHTML = `<span class="lic-pill lic-bad">Error</span> ${e.response?.data?.error || e.message}`;
+        }
+    },
+
+    // Estado del SOPORTE ANUAL (check-in a la autoridad de OMNI CORE, omnicore.casrodsoft.com).
+    _pintarLocal(loc) {
+        const el = document.getElementById('lic-remota');
+        if (!el) return;
+        if (!loc || !loc.exigida) {
+            el.innerHTML = `<span class="lic-pill lic-ok">Modo libre</span>
+                <div class="omni-sub" style="margin-top:6px">Esta instalación no tiene clave de licencia configurada.</div>`;
+            return;
+        }
+        const cls = loc.valido ? (loc.motivo === 'GRACIA' ? 'lic-warn' : 'lic-ok') : 'lic-bad';
+        const txt = loc.valido
+            ? (loc.motivo === 'GRACIA' ? 'Sin conexión (gracia)' : 'Verificada')
+            : (loc.motivo === 'SUSPENDIDA' ? 'Suspendida'
+                : loc.motivo === 'OTRA_MAQUINA' ? 'Clave en otro servidor'
+                : loc.motivo === 'GRACIA_AGOTADA' ? 'Sin verificar (gracia agotada)'
+                : 'Soporte vencido');
+        el.innerHTML = `<span class="lic-pill ${cls}">${txt}</span>
+            <div class="omni-sub" style="margin-top:6px">
+                ${loc.soporteHasta ? 'Soporte hasta: <b>' + String(loc.soporteHasta).slice(0, 10) + '</b> · ' : ''}
+                ${loc.verificadoEn ? 'última verificación: ' + new Date(loc.verificadoEn).toLocaleString() : 'nunca verificada'}
+            </div>
+            ${loc.mensaje ? `<div class="omni-sub" style="margin-top:6px;${loc.valido ? '' : 'color:#c0392b;font-weight:700'}">${loc.mensaje}</div>` : ''}
+            <div class="omni-sub" style="margin-top:4px;font-size:.7rem">servidor: ${loc.servidor || ''}${loc.huella ? ' · máquina: ' + loc.huella.slice(0, 12) : ''}</div>`;
+    },
+
+    async verificarRemota() {
+        const el = document.getElementById('lic-remota');
+        if (el) el.innerHTML = 'Verificando…';
+        try {
+            const r = await api.post('/licencia/verificar');
+            this._pintarLocal({ ...r.data, servidor: r.data.servidor || '' });
+            window.Toast && window.Toast.fire({ icon: 'success', title: 'Verificado' });
+        } catch (e) {
+            Swal.fire('Error', e.response?.data?.error || 'No se pudo verificar.', 'error');
+            this.cargar();
         }
     },
 
@@ -107,6 +166,21 @@ const LicenciaModule = {
         try {
             const r = await api.post('/licencia/vigencia', body);
             window.Toast ? window.Toast.fire({ icon: 'success', title: 'Vigencia actualizada' }) : Swal.fire('OK', 'Vigencia actualizada', 'success');
+            this.cargar();
+        } catch (e) {
+            Swal.fire('Error', e.response?.data?.error || 'No se pudo guardar.', 'error');
+        }
+    },
+
+    // Solo soporte: fija/limpia el tope de empresas de la cuenta SaaS.
+    async fijarMaxEmpresas() {
+        const raw = document.getElementById('lic-maxemp').value.trim();
+        const maxEmpresas = raw === '' ? null : parseInt(raw);
+        if (maxEmpresas !== null && (!Number.isFinite(maxEmpresas) || maxEmpresas < 1))
+            return Swal.fire('Atención', 'El tope debe ser un número mayor o igual a 1, o vacío para sin tope.', 'warning');
+        try {
+            await api.post('/licencia/max-empresas', { maxEmpresas });
+            window.Toast ? window.Toast.fire({ icon: 'success', title: 'Tope actualizado' }) : Swal.fire('OK', 'Tope actualizado', 'success');
             this.cargar();
         } catch (e) {
             Swal.fire('Error', e.response?.data?.error || 'No se pudo guardar.', 'error');

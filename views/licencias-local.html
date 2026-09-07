@@ -1,0 +1,46 @@
+<div class="omni-mod">
+    <div class="omni-head">
+        <div class="omni-head-l">
+            <button class="omni-btn omni-btn-ghost" onclick="App.renderView('licencia','viewport')"><i class="fas fa-chevron-left"></i></button>
+            <div>
+                <h2><i class="fas fa-key"></i> LICENCIAS — INSTALACIONES LOCAL</h2>
+                <p class="omni-sub">Soporte anual de los clientes con OMNI CORE instalado en su propio servidor</p>
+            </div>
+        </div>
+        <button class="omni-btn omni-btn-primary" onclick="LicLocalModule.nueva()"><i class="fas fa-plus"></i> Nueva licencia</button>
+    </div>
+
+    <div class="lic-box" style="margin-bottom:14px">
+        <p class="omni-sub" style="margin:0">
+            Cada fila es una instalación Local. El backend del cliente hace check-in cada 12&nbsp;h contra
+            <b>omnicore.casrodsoft.com</b>. Si el soporte vence o suspendes la licencia, esa instalación bloquea
+            <b>solo la aplicación</b> (nunca la base de datos). La clave se amarra al primer servidor donde se activa;
+            usa <b>Liberar máquina</b> si el cliente cambia de servidor.
+        </p>
+    </div>
+
+    <div id="lic-local-tabla" class="lic-box">Cargando…</div>
+</div>
+
+<style>
+    .omni-mod { padding:30px 40px; font-family:'Inter','Segoe UI',sans-serif; color:#2c3e50; background:#eef1f5; min-height:100%; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:16px; flex-wrap:wrap; }
+    .omni-head-l { display:flex; gap:16px; align-items:center; }
+    .omni-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:2px; color:#1a365d; }
+    .omni-head h2 i { color:#2f7be6; margin-right:8px; }
+    .omni-sub { margin:4px 0 0; font-size:.78rem; color:#718096; font-weight:600; }
+    .omni-btn { border:none; border-radius:11px; padding:10px 16px; font-weight:800; font-size:.78rem; cursor:pointer; display:inline-flex; align-items:center; gap:7px; background:#e2e7ee; color:#3a4a5d; }
+    .omni-btn-primary { background:#2f7be6; color:#fff; } .omni-btn-ghost { background:#e2e7ee; color:#5a6b7d; }
+    .omni-btn-sm { padding:6px 10px; font-size:.7rem; border-radius:8px; }
+    .lic-box { background:#fff; border-radius:14px; padding:18px 22px; box-shadow:0 4px 14px rgba(30,50,80,.07); }
+    .lic-pill { padding:3px 10px; border-radius:20px; font-size:.64rem; font-weight:900; text-transform:uppercase; white-space:nowrap; }
+    .lic-ok { background:#dcfce7; color:#166534; } .lic-bad { background:#fee2e2; color:#991b1b; }
+    .lic-warn { background:#fef3c7; color:#92400e; } .lic-gray { background:#e5e9f0; color:#475569; }
+    table.lic-tbl { width:100%; border-collapse:collapse; font-size:.8rem; }
+    table.lic-tbl th { text-align:left; padding:9px 10px; color:#64748b; font-size:.68rem; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #eef1f5; }
+    table.lic-tbl td { padding:10px; border-bottom:1px solid #f1f4f8; vertical-align:middle; }
+    table.lic-tbl tr:hover td { background:#f8fafc; }
+    .lic-clave { font-family:Consolas,monospace; font-weight:700; color:#1a365d; }
+    .lic-acts { display:flex; gap:6px; flex-wrap:wrap; }
+    .lic-scroll { overflow-x:auto; }
+</style>

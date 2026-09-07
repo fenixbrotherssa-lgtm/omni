@@ -121,8 +121,14 @@ function iniciarAutoUpdate(win) {
     autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
 
     ipcMain.handle('omni:update-check', async () => {
-        try { const r = await autoUpdater.checkForUpdates(); return { ok: true, version: r?.updateInfo?.version || null }; }
-        catch (e) { return { ok: false, error: e.message }; }
+        try {
+            const r = await autoUpdater.checkForUpdates();
+            // checkForUpdates() SIEMPRE devuelve updateInfo (la versión del feed),
+            // aunque sea la misma instalada. Solo reportar si hay una MÁS nueva.
+            const hay = !!(r && (r.isUpdateAvailable === true ||
+                (r.updateInfo && r.updateInfo.version && r.updateInfo.version !== app.getVersion())));
+            return { ok: true, version: hay ? r.updateInfo.version : null };
+        } catch (e) { return { ok: false, error: e.message }; }
     });
     ipcMain.on('omni:update-install', () => { try { autoUpdater.quitAndInstall(false, true); } catch (_) {} });
 
