@@ -206,9 +206,24 @@ function createWindow() {
     iniciarAutoUpdate(win);
 }
 
-app.whenReady().then(() => {
-    createWindow();
-    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-});
+// Instancia única: si ya hay una OMNI CORE corriendo, esta se cierra y
+// enfoca la existente. Evita que se acumulen procesos ocultos (era la causa
+// de "cierra la aplicación" cuando aparentemente no había ninguna abierta).
+const _soloUna = app.requestSingleInstanceLock();
+if (!_soloUna) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+
+    app.whenReady().then(() => {
+        createWindow();
+        app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+    });
+}
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
