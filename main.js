@@ -120,8 +120,8 @@ function iniciarAutoUpdate(win) {
     autoUpdater.on('update-downloaded', (info) => avisar('listo', { version: info.version }));
     autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
 
-    // Aplica la actualización. Con NSIS oneClick (por-usuario) el updater se
-    // encarga solo del reemplazo silencioso; solo hay que asegurar que la app
+    // Aplica la actualización. Con NSIS por-usuario (perMachine:false) el
+    // updater reemplaza sin pedir elevación; solo hay que asegurar que la app
     // salga limpia (sin handlers de 'close'/'window-all-closed' que lo impidan).
     function instalarActualizacion() {
         try {

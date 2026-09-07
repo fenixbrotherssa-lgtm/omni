@@ -1,9 +1,11 @@
 const api = require('./api');
 
 // Panel del proveedor: licencias de las instalaciones LOCAL (soporte anual).
-// Solo se llega aquí desde la pantalla Licencia, y solo si el usuario es
-// "soporte" y esta instancia es la AUTORIDAD (omnicore.casrodsoft.com).
+// Solo se llega aquí desde la pantalla Licencia, para el usuario "soporte".
+// El panel avisa por dentro si esta instancia no es la AUTORIDAD.
 const LicLocalModule = {
+    _filas: {},
+
     async init() {
         window.LicLocalModule = this;
         window.backView = 'licencia';
@@ -21,6 +23,8 @@ const LicLocalModule = {
         try {
             const r = await api.get('/licenciamiento/admin');
             const filas = r.data || [];
+            this._filas = {};
+            filas.forEach(f => { this._filas[f.LicenciaID] = f; });
             if (!filas.length) {
                 cont.innerHTML = '<p class="omni-sub" style="margin:0">Todavía no hay licencias. Crea la primera con “Nueva licencia”.</p>';
                 return;
@@ -38,6 +42,7 @@ const LicLocalModule = {
     },
 
     _fila(f) {
+        const id = f.LicenciaID;
         const sit = f.Situacion === 'vigente'
             ? `<span class="lic-pill lic-ok">Vigente</span>`
             : f.Situacion === 'suspendida'
@@ -46,36 +51,38 @@ const LicLocalModule = {
         const dias = (f.DiasRestantes != null && f.Situacion === 'vigente')
             ? `<div class="omni-sub" style="margin-top:3px">${f.DiasRestantes} día(s)</div>` : '';
         const maq = f.MaquinaHuella
-            ? `${f.MaquinaNombre || '—'}<div class="omni-sub" style="margin-top:3px">${String(f.MaquinaHuella).slice(0, 12)}${f.UltimaIP ? ' · ' + f.UltimaIP : ''}</div>`
+            ? `${this._esc(f.MaquinaNombre) || '—'}<div class="omni-sub" style="margin-top:3px">${String(f.MaquinaHuella).slice(0, 12)}${f.UltimaIP ? ' · ' + this._esc(f.UltimaIP) : ''}</div>`
             : `<span class="omni-sub">sin activar</span>`;
         const chk = f.UltimoCheckin
-            ? new Date(f.UltimoCheckin).toLocaleString() + (f.VersionVista ? `<div class="omni-sub" style="margin-top:3px">v${f.VersionVista}</div>` : '')
+            ? new Date(f.UltimoCheckin).toLocaleString() + (f.VersionVista ? `<div class="omni-sub" style="margin-top:3px">v${this._esc(f.VersionVista)}</div>` : '')
             : '<span class="omni-sub">nunca</span>';
         const suspBtn = f.Estado === 'suspendida'
-            ? `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.estado(${f.LicenciaID},'activa')"><i class="fas fa-play"></i> Reactivar</button>`
-            : `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.estado(${f.LicenciaID},'suspendida')"><i class="fas fa-pause"></i> Suspender</button>`;
+            ? `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.estado(${id},'activa')"><i class="fas fa-play"></i> Reactivar</button>`
+            : `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.estado(${id},'suspendida')"><i class="fas fa-pause"></i> Suspender</button>`;
         const emp = f.MaxEmpresas != null
             ? `<b>${f.MaxEmpresas}</b>`
             : `<span class="omni-sub">sin tope</span>`;
         return `<tr>
             <td><b>${this._esc(f.Cliente)}</b>${f.Notas ? `<div class="omni-sub" style="margin-top:3px">${this._esc(f.Notas)}</div>` : ''}</td>
-            <td><span class="lic-clave">${f.Clave}</span>
-                <button class="omni-btn omni-btn-sm" style="margin-left:6px" onclick="LicLocalModule.copiar('${f.Clave}')"><i class="fas fa-copy"></i></button></td>
+            <td><span class="lic-clave">${this._esc(f.Clave)}</span>
+                <button class="omni-btn omni-btn-sm" style="margin-left:6px" onclick="LicLocalModule.copiar(${id})"><i class="fas fa-copy"></i></button></td>
             <td>${sit}${dias}</td>
             <td>${String(f.SoporteHasta).slice(0, 10)}</td>
-            <td>${emp} <button class="omni-btn omni-btn-sm" onclick="LicLocalModule.limites(${f.LicenciaID}, ${f.MaxEmpresas == null ? 'null' : f.MaxEmpresas})"><i class="fas fa-pen"></i></button></td>
+            <td>${emp} <button class="omni-btn omni-btn-sm" onclick="LicLocalModule.limites(${id})"><i class="fas fa-pen"></i></button></td>
             <td>${maq}</td>
             <td>${chk}</td>
             <td><div class="lic-acts">
-                <button class="omni-btn omni-btn-sm omni-btn-primary" onclick="LicLocalModule.renovar(${f.LicenciaID},'${this._esc(f.Cliente)}')"><i class="fas fa-rotate"></i> Renovó</button>
+                <button class="omni-btn omni-btn-sm omni-btn-primary" onclick="LicLocalModule.renovar(${id})"><i class="fas fa-rotate"></i> Renovó</button>
                 ${suspBtn}
-                ${f.MaquinaHuella ? `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.desvincular(${f.LicenciaID})"><i class="fas fa-unlink"></i> Liberar máquina</button>` : ''}
-                <button class="omni-btn omni-btn-sm" onclick="LicLocalModule.eliminar(${f.LicenciaID},'${this._esc(f.Cliente)}')"><i class="fas fa-trash"></i></button>
+                ${f.MaquinaHuella ? `<button class="omni-btn omni-btn-sm" onclick="LicLocalModule.desvincular(${id})"><i class="fas fa-unlink"></i> Liberar máquina</button>` : ''}
+                <button class="omni-btn omni-btn-sm" onclick="LicLocalModule.eliminar(${id})"><i class="fas fa-trash"></i></button>
             </div></td>
         </tr>`;
     },
 
     _esc(s) { return String(s || '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c])); },
+
+    _nombre(id) { return (this._filas[id] && this._filas[id].Cliente) || ('licencia ' + id); },
 
     async nueva() {
         const { value: v } = await Swal.fire({
@@ -112,19 +119,21 @@ const LicLocalModule = {
                 icon: 'success',
                 title: 'Licencia creada',
                 html: `Pega esta clave en el instalador del backend del cliente (campo <b>Clave</b>):
-                    <div style="margin-top:12px;font-family:Consolas,monospace;font-size:1.15rem;font-weight:800;color:#1a365d;user-select:all">${r.data.clave}</div>
+                    <div style="margin-top:12px;font-family:Consolas,monospace;font-size:1.15rem;font-weight:800;color:#1a365d;user-select:all">${this._esc(r.data.clave)}</div>
                     <div class="omni-sub" style="margin-top:10px">Soporte hasta ${r.data.soporteHasta}</div>`,
                 confirmButtonText: 'Copiar clave y cerrar'
-            }).then(() => this.copiar(r.data.clave));
+            }).then(() => {
+                try { navigator.clipboard.writeText(r.data.clave); } catch (_) {}
+            });
             this.cargar();
         } catch (e) {
             Swal.fire('Error', e.response?.data?.error || 'No se pudo crear.', 'error');
         }
     },
 
-    async renovar(id, cliente) {
+    async renovar(id) {
         const { value: meses } = await Swal.fire({
-            title: `Renovar soporte — ${cliente}`,
+            title: `Renovar soporte — ${this._nombre(id)}`,
             input: 'select',
             inputOptions: { 12: '+12 meses', 6: '+6 meses', 3: '+3 meses', 1: '+1 mes' },
             inputValue: '12',
@@ -149,7 +158,8 @@ const LicLocalModule = {
         } catch (e) { Swal.fire('Error', e.response?.data?.error || 'No se pudo cambiar.', 'error'); }
     },
 
-    async limites(id, actual) {
+    async limites(id) {
+        const actual = this._filas[id] ? this._filas[id].MaxEmpresas : null;
         const { value: v } = await Swal.fire({
             title: 'Tope de empresas de esta licencia',
             input: 'number',
@@ -181,8 +191,8 @@ const LicLocalModule = {
         } catch (e) { Swal.fire('Error', e.response?.data?.error || 'No se pudo.', 'error'); }
     },
 
-    async eliminar(id, cliente) {
-        const r = await Swal.fire({ title: `Eliminar licencia de ${cliente}`, text: 'Se borra del panel. Si esa instalación sigue activa, en su próximo check-in quedará bloqueada (clave desconocida).', icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar', confirmButtonColor: '#c0392b' });
+    async eliminar(id) {
+        const r = await Swal.fire({ title: `Eliminar licencia de ${this._nombre(id)}`, text: 'Se borra del panel. Si esa instalación sigue activa, en su próximo check-in quedará bloqueada (clave desconocida).', icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar', confirmButtonColor: '#c0392b' });
         if (!r.isConfirmed) return;
         try {
             await api.delete(`/licenciamiento/admin/${id}`);
@@ -190,12 +200,13 @@ const LicLocalModule = {
         } catch (e) { Swal.fire('Error', e.response?.data?.error || 'No se pudo eliminar.', 'error'); }
     },
 
-    copiar(txt) {
+    copiar(id) {
+        const clave = this._filas[id] ? this._filas[id].Clave : '';
         try {
-            navigator.clipboard.writeText(txt);
+            navigator.clipboard.writeText(clave);
             window.Toast && window.Toast.fire({ icon: 'success', title: 'Clave copiada' });
         } catch (_) {
-            Swal.fire('Clave', txt, 'info');
+            Swal.fire('Clave', clave, 'info');
         }
     }
 };
