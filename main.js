@@ -120,6 +120,26 @@ function iniciarAutoUpdate(win) {
     autoUpdater.on('update-downloaded', (info) => avisar('listo', { version: info.version }));
     autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
 
+    // Aplica la actualización cerrando la app a la FUERZA. Sin esto, en Windows
+    // NSIS muestra "no se puede cerrar la aplicación, ciérrela manualmente" si
+    // algún handler de 'close' o 'window-all-closed' impide el quit.
+    function instalarActualizacion() {
+        try {
+            autoUpdater.autoInstallOnAppQuit = true;
+            app.removeAllListeners('window-all-closed');
+            BrowserWindow.getAllWindows().forEach(w => {
+                try { w.removeAllListeners('close'); w.destroy(); } catch (_) {}
+            });
+            setImmediate(() => {
+                try { autoUpdater.quitAndInstall(true, true); }   // isSilent=true, forceRunAfter=true
+                catch (_) { app.exit(0); }
+            });
+            // Salvavidas: si en 4 s el proceso sigue vivo, forzar salida (el
+            // instalador pendiente se aplica igual al reabrir).
+            setTimeout(() => { try { app.exit(0); } catch (_) {} }, 4000);
+        } catch (e) { console.error('instalarActualizacion:', e); }
+    }
+
     ipcMain.handle('omni:update-check', async () => {
         try {
             const r = await autoUpdater.checkForUpdates();
@@ -130,7 +150,7 @@ function iniciarAutoUpdate(win) {
             return { ok: true, version: hay ? r.updateInfo.version : null };
         } catch (e) { return { ok: false, error: e.message }; }
     });
-    ipcMain.on('omni:update-install', () => { try { autoUpdater.quitAndInstall(false, true); } catch (_) {} });
+    ipcMain.on('omni:update-install', () => instalarActualizacion());
 
     // primer chequeo a los ~4s de abrir (no bloquea el arranque)
     setTimeout(() => { autoUpdater.checkForUpdatesAndNotify().catch(() => {}); }, 4000);
