@@ -120,9 +120,9 @@ function iniciarAutoUpdate(win) {
     autoUpdater.on('update-downloaded', (info) => avisar('listo', { version: info.version }));
     autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
 
-    // Aplica la actualización cerrando la app a la FUERZA. Sin esto, en Windows
-    // NSIS muestra "no se puede cerrar la aplicación, ciérrela manualmente" si
-    // algún handler de 'close' o 'window-all-closed' impide el quit.
+    // Aplica la actualización. Con NSIS oneClick (por-usuario) el updater se
+    // encarga solo del reemplazo silencioso; solo hay que asegurar que la app
+    // salga limpia (sin handlers de 'close'/'window-all-closed' que lo impidan).
     function instalarActualizacion() {
         try {
             autoUpdater.autoInstallOnAppQuit = true;
@@ -131,12 +131,9 @@ function iniciarAutoUpdate(win) {
                 try { w.removeAllListeners('close'); w.destroy(); } catch (_) {}
             });
             setImmediate(() => {
-                try { autoUpdater.quitAndInstall(true, true); }   // isSilent=true, forceRunAfter=true
-                catch (_) { app.exit(0); }
+                try { autoUpdater.quitAndInstall(); }   // args por defecto: (false, true)
+                catch (e) { console.error('quitAndInstall:', e); }
             });
-            // Salvavidas: si en 4 s el proceso sigue vivo, forzar salida (el
-            // instalador pendiente se aplica igual al reabrir).
-            setTimeout(() => { try { app.exit(0); } catch (_) {} }, 4000);
         } catch (e) { console.error('instalarActualizacion:', e); }
     }
 
