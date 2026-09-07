@@ -60,9 +60,10 @@ const LicenciaModule = {
             const d = r.data;
             this._pintarLocal(d.local);
 
-            // Panel de instalaciones Local: solo en la instancia AUTORIDAD y para "soporte".
+            // Panel de instalaciones Local: para "soporte" (el proveedor).
+            // El panel avisa por dentro si esta instancia no es la autoridad.
             const btnPanel = document.getElementById('lic-btn-panel');
-            if (btnPanel) btnPanel.style.display = (d.puedeGestionar && d.esAutoridad) ? '' : 'none';
+            if (btnPanel) btnPanel.style.display = d.puedeGestionar ? '' : 'none';
 
             if (d.edicion === 'local') {
                 el.innerHTML = `

@@ -10,6 +10,14 @@
         <button class="omni-btn omni-btn-primary" onclick="LicLocalModule.nueva()"><i class="fas fa-plus"></i> Nueva licencia</button>
     </div>
 
+    <div id="lic-local-aviso" class="lic-box" style="display:none;margin-bottom:14px;border-left:4px solid #e0a800;background:#fffbeb">
+        <p class="omni-sub" style="margin:0;color:#92400e">
+            <b>Esta instancia NO es la autoridad de licencias.</b> Las claves que crees aquí no responderán a los
+            check-in de los clientes. Para que funcionen, esta debe ser la instancia detrás de
+            <b>omnicore.casrodsoft.com</b> con <code>LICENSE_AUTHORITY=1</code> en su <code>.env</code>.
+        </p>
+    </div>
+
     <div class="lic-box" style="margin-bottom:14px">
         <p class="omni-sub" style="margin:0">
             Cada fila es una instalación Local. El backend del cliente hace check-in cada 12&nbsp;h contra

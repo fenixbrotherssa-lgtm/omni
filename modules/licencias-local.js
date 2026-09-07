@@ -12,6 +12,12 @@ const LicLocalModule = {
 
     async cargar() {
         const cont = document.getElementById('lic-local-tabla');
+        // Aviso si esta instancia no es la autoridad (sus claves no responden check-ins).
+        try {
+            const info = await api.get('/licencia');
+            const av = document.getElementById('lic-local-aviso');
+            if (av) av.style.display = info.data && info.data.esAutoridad ? 'none' : '';
+        } catch (_) {}
         try {
             const r = await api.get('/licenciamiento/admin');
             const filas = r.data || [];
