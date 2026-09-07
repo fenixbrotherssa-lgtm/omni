@@ -171,19 +171,53 @@ const LicenciaModule = {
             const r = await api.get('/actualizaciones/check');
             const d = r.data;
             if (!d.configurado) {
-                el.innerHTML = `Versión instalada: <b>${d.actual}</b>. No hay servidor de actualizaciones configurado (UPDATE_MANIFEST_URL).`;
+                el.innerHTML = `Versión instalada: <b>${d.actual}</b>. No hay servidor de actualizaciones configurado.`;
             } else if (d.error) {
                 el.innerHTML = `Versión instalada: <b>${d.actual}</b>. ${d.error}`;
             } else if (d.hayNueva) {
                 el.innerHTML = `Versión instalada: <b>${d.actual}</b> · <span style="color:#c0392b;font-weight:800">hay una nueva: ${d.disponible}</span><br>
                     ${d.notas ? `<span class="omni-sub">${d.notas}</span><br>` : ''}
-                    ${d.descargaBackend ? `<a href="#" onclick="event.preventDefault();require('electron').shell.openExternal('${d.descargaBackend}')">Descargar instalador del backend</a><br>` : ''}
-                    ${d.descargaCliente ? `<a href="#" onclick="event.preventDefault();require('electron').shell.openExternal('${d.descargaCliente}')">Descargar instalador del cliente</a>` : ''}`;
+                    <button id="upd-btn-aplicar" class="omni-btn omni-btn-primary" style="margin-top:10px" onclick="LicenciaModule.aplicarActualizacion('${d.disponible}')"><i class="fas fa-download"></i> Actualizar ahora</button>
+                    <div class="omni-sub" style="margin-top:8px">El servidor también puede actualizarse solo de madrugada (lo activa tu proveedor).</div>`;
             } else {
                 el.innerHTML = `Versión instalada: <b>${d.actual}</b>. Estás al día.`;
             }
         } catch (e) {
             el.innerHTML = 'No se pudo comprobar actualizaciones.';
+        }
+    },
+
+    // Baja y aplica el instalador nuevo del backend. El servicio se
+    // autodetiene y vuelve solo en 1-2 min; forzamos re-login.
+    async aplicarActualizacion(version) {
+        const c = await Swal.fire({
+            title: `Actualizar el servidor a ${version}`,
+            html: 'El servidor se detendrá y volverá solo en 1-2 minutos. La sesión se cerrará y tendrás que volver a entrar.<br><br>¿Continuar?',
+            icon: 'warning', showCancelButton: true,
+            confirmButtonText: 'Sí, actualizar ahora', cancelButtonText: 'Cancelar'
+        });
+        if (!c.isConfirmed) return;
+
+        const btn = document.getElementById('upd-btn-aplicar');
+        const el = document.getElementById('upd-body');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Descargando…'; }
+        try {
+            const r = await api.post('/actualizaciones/aplicar');
+            const d = r.data || {};
+            if (d.ok) {
+                if (el) el.innerHTML = `<b>Actualizando a ${d.version || version}…</b><br><span class="omni-sub">El servidor se reiniciará solo. Vuelve a entrar en un par de minutos.</span>`;
+                setTimeout(() => { try { localStorage.clear(); } catch (_) {} location.reload(); }, 90000);
+            } else if (d.motivo === 'EN_PROGRESO') {
+                Swal.fire('En curso', 'Ya hay una actualización en progreso.', 'info');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i> Actualizar ahora'; }
+            } else {
+                Swal.fire('No se pudo', d.mensaje || 'No se pudo iniciar la actualización.', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i> Actualizar ahora'; }
+            }
+        } catch (e) {
+            // Si el servicio ya se cayó a mitad, es esperado.
+            if (el) el.innerHTML = `<b>Actualización iniciada.</b><br><span class="omni-sub">El servidor se está reiniciando. Vuelve a entrar en un par de minutos.</span>`;
+            setTimeout(() => { try { localStorage.clear(); } catch (_) {} location.reload(); }, 90000);
         }
     }
 };

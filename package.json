@@ -1,6 +1,6 @@
 {
   "name": "omnicore-frontend",
-  "version": "4.5.6",
+  "version": "4.5.7",
   "description": "OMNI CORE — Terminal de escritorio (Electron)",
   "main": "main.js",
   "scripts": {
@@ -47,10 +47,8 @@
       "icon": "assets/icono.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowElevation": false,
-      "allowToChangeInstallationDirectory": true,
       "installerIcon": "assets/icono.ico",
       "uninstallerIcon": "assets/icono.ico",
       "createDesktopShortcut": true,
