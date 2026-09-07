@@ -132,20 +132,14 @@ async function build() {
         }
     }
 
-    // ── config.js segun la VARIANTE ────────────────────────────
-    //  OMNI_BUILD_TARGET = saas (por defecto) | local
-    //    saas  -> SERVER_ADDRESS pre-apuntado a omnicore.casrodsoft.com
-    //    local -> SERVER_ADDRESS = localhost (el cliente lo cambia con
-    //             el boton "Configurar servidor" del login)
-    //  Cada variante usa un CANAL de auto-update distinto para que un
-    //  update no le pise el SERVER_ADDRESS a la otra.
-    const TARGET = (process.env.OMNI_BUILD_TARGET || 'saas').toLowerCase();
-    const esLocal = TARGET === 'local';
-    const serverAddr = esLocal ? 'localhost' : 'omnicore.casrodsoft.com';
+    // ── config.js ─────────────────────────────────────────────
+    //  UN SOLO instalador. Viene apuntado al servidor SaaS del proveedor.
+    //  El cliente Local lo cambia con el botón "Configurar servidor" del
+    //  login (pantalla previa al inicio de sesión).
     const configJs =
 `const CONFIG = {
     ENV: 'production',
-    SERVER_ADDRESS: '${serverAddr}',
+    SERVER_ADDRESS: 'omnicore.casrodsoft.com',
     PORT: 3636,
 
     getApiUrl() {
@@ -159,7 +153,7 @@ async function build() {
 module.exports = CONFIG;
 `;
     fs.writeFileSync(path.join(DIST_SRC, 'config.js'), configJs, 'utf8');
-    console.log(`config.js incluido (variante ${TARGET}, SERVER_ADDRESS=${serverAddr}).`);
+    console.log('config.js incluido (SERVER_ADDRESS=omnicore.casrodsoft.com).');
 
     // ── Empaquetado con electron-builder ───────────────────────
     //  Windows -> instalador NSIS + electron-updater (latest.yml + .blockmap).
@@ -177,15 +171,11 @@ module.exports = CONFIG;
     const urlOverride = process.env.OMNI_UPDATE_URL
         ? ` -c.publish.url=${process.env.OMNI_UPDATE_URL}` : '';
     const outOverride = ' -c.directories.output=../dist';
-    // Variante Local: nombre de artefacto y canal de update propios.
-    const varOverride = esLocal
-        ? ' -c.nsis.artifactName=OMNI-CORE-Local-Setup-${version}.${ext} -c.publish.channel=omnicore-local'
-        : '';
 
-    console.log(`\nEmpaquetando con electron-builder (${PLATFORM}, variante ${TARGET}, publish: ${publish})...`);
+    console.log(`\nEmpaquetando con electron-builder (${PLATFORM}, publish: ${publish})...`);
     try {
         execSync(
-            `npx electron-builder ${flagPlataforma} --publish ${publish}${outOverride}${urlOverride}${varOverride}`,
+            `npx electron-builder ${flagPlataforma} --publish ${publish}${outOverride}${urlOverride}`,
             { stdio: 'inherit', cwd: DIST_SRC }
         );
         console.log('\nCOMPILACION electron-builder EXITOSA — revisa la carpeta dist/');

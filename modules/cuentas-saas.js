@@ -28,7 +28,12 @@ const CuentasSaasModule = {
                 <tbody>${filas.map(f => this._fila(f)).join('')}</tbody>
             </table></div>`;
         } catch (e) {
-            cont.innerHTML = `<span class="lic-pill lic-bad">Error</span> ${e.response?.data?.error || e.message}`;
+            const msg = e.response?.data?.error || e.message || '';
+            if (/Invalid column|Invalid object|SaasCuentas|solo aplica|edición SaaS/i.test(msg)) {
+                cont.innerHTML = '<p class="omni-sub" style="margin:0">Este panel solo funciona en el servidor SaaS del proveedor. Esta instalación no lo es.</p>';
+            } else {
+                cont.innerHTML = `<span class="lic-pill lic-bad">Error</span> ${msg}`;
+            }
         }
     },
 

@@ -63,9 +63,13 @@ const LicenciaModule = {
             const bCuentas = document.getElementById('lic-btn-cuentas');
             const bLocal = document.getElementById('lic-btn-local');
             const puede = d.puedeGestionar;
-            if (bCuentas) bCuentas.style.display = (puede && d.edicion === 'saas') ? '' : 'none';
-            if (bLocal) bLocal.style.display = (puede && d.esAutoridad) ? '' : 'none';
-            if (boxPanel) boxPanel.style.display = puede ? '' : 'none';
+            const verCuentas = puede && d.edicion === 'saas';
+            const verLocal = puede && d.esAutoridad;
+            if (bCuentas) bCuentas.style.display = verCuentas ? '' : 'none';
+            if (bLocal) bLocal.style.display = verLocal ? '' : 'none';
+            // El recuadro solo si hay al menos un panel para mostrar (en un
+            // cliente Local que no es autoridad no aparece nada).
+            if (boxPanel) boxPanel.style.display = (verCuentas || verLocal) ? '' : 'none';
 
             const empEl = document.getElementById('lic-empresas');
             const boxLocal = document.getElementById('lic-box-local');
