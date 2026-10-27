@@ -1,6 +1,6 @@
 {
   "name": "omnicore-frontend",
-  "version": "4.5.9",
+  "version": "4.5.10",
   "description": "OMNI CORE — Terminal de escritorio (Electron)",
   "main": "main.js",
   "scripts": {
@@ -31,7 +31,8 @@
       "!installer_frontend.iss",
       "!Setup_*.exe",
       "!.github/*",
-      "!estructura.html"
+      "!estructura.html",
+    "!build/*"
     ],
     "extraResources": [
       {

@@ -23,6 +23,7 @@ const OBFUSCAR = [
 // 2. Lo que se copia intacto
 const COPIAR_TAL_CUAL = [
     'assets',
+    'build',          // build/installer.nsh (personalización NSIS)
     'node_modules',
     'public',
     'estructura.html',
