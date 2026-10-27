@@ -4,9 +4,17 @@
             <button class="omni-btn omni-btn-ghost" onclick="App.renderView('dashboard','viewport')"><i class="fas fa-chevron-left"></i></button>
             <div>
                 <h2><i class="fas fa-cart-shopping"></i> PUNTO DE VENTA</h2>
-                <p class="omni-sub">Ventas de bienes y servicios · genera cuenta por cobrar y asiento contable</p>
+                <p class="omni-sub">Ventas de bienes y servicios · factura electrónica o recibo · caja, inventario y asiento automáticos</p>
             </div>
         </div>
+        <div class="omni-head-r">
+            <span id="pos-caja-pill" class="pos-caja-pill">Verificando caja…</span>
+        </div>
+    </div>
+    <div id="pos-caja-aviso" class="pos-caja-aviso" style="display:none;">
+        <i class="fas fa-cash-register"></i>
+        <span>Tu turno de caja está <b>cerrado</b>. Las ventas de contado no se registran hasta aperturar caja (las ventas a crédito sí).</span>
+        <button class="omni-btn omni-btn-primary" onclick="App.renderView('caja','viewport')"><i class="fas fa-lock-open"></i> Abrir caja</button>
     </div>
 
     <div class="pos-grid">
@@ -32,6 +40,11 @@
         <div class="pos-right">
             <h4>Datos de la venta</h4>
 
+            <div class="pos-comp" role="radiogroup" aria-label="Tipo de comprobante">
+                <label><input type="radio" name="pos-comp" value="RECIBO" checked onchange="PosModule.onComprobante()"><span><i class="fas fa-receipt"></i> Recibo</span></label>
+                <label><input type="radio" name="pos-comp" value="FACTURA" onchange="PosModule.onComprobante()"><span><i class="fas fa-file-invoice"></i> Factura SRI</span></label>
+            </div>
+
             <label class="omni-fld">Cliente
                 <div class="pos-cli-box">
                     <input type="text" id="pos-cli" class="omni-input" placeholder="CONSUMIDOR FINAL" autocomplete="off">
@@ -41,6 +54,11 @@
             </label>
             <div id="pos-cli-result" class="pos-result" style="display:none;"></div>
             <label class="omni-fld">Identificación (cédula / RUC) <input type="text" id="pos-doc" class="omni-input" placeholder="9999999999999" autocomplete="off"></label>
+            <div id="pos-fac-extra" style="display:none;">
+                <label class="omni-fld">Correo (envío del RIDE) <input type="email" id="pos-correo" class="omni-input" placeholder="opcional"></label>
+                <label class="omni-fld">Dirección <input type="text" id="pos-dir" class="omni-input" placeholder="opcional"></label>
+                <p class="pos-hint"><i class="fas fa-circle-info"></i> Consumidor final solo hasta $50 (norma SRI). La factura usa los mismos valores de la venta.</p>
+            </div>
 
             <label class="omni-fld">Condición
                 <select id="pos-tipo" class="omni-input" onchange="PosModule.toggleCredito()">
@@ -91,8 +109,8 @@
     <h4 class="pos-recent-h">Ventas recientes</h4>
     <div class="omni-tablewrap">
         <table class="omni-table">
-            <thead><tr><th style="width:70px">#</th><th style="width:100px">Fecha</th><th>Cliente</th><th style="width:90px">Cond.</th><th style="width:120px" class="num">Total</th><th style="width:100px">Estado</th><th style="width:90px"></th></tr></thead>
-            <tbody id="pos-recent"><tr><td colspan="7" class="omni-empty">—</td></tr></tbody>
+            <thead><tr><th style="width:70px">#</th><th style="width:100px">Fecha</th><th>Cliente</th><th style="width:90px">Cond.</th><th style="width:120px" class="num">Total</th><th style="width:150px">Comprobante</th><th style="width:100px">Estado</th><th style="width:150px"></th></tr></thead>
+            <tbody id="pos-recent"><tr><td colspan="8" class="omni-empty">—</td></tr></tbody>
         </table>
     </div>
 </div>
@@ -147,5 +165,18 @@
     .omni-tablewrap { background:#fff; border-radius:14px; box-shadow:0 4px 14px rgba(30,50,80,.07); overflow:auto; }
     .omni-tablewrap tbody tr:hover { background:#f6f9fd; }
     .bdg { padding:3px 8px; border-radius:6px; font-size:.66rem; font-weight:800; }
+    .omni-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+    .pos-caja-pill { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:20px; font-size:.72rem; font-weight:800; background:#eef1f5; color:#5a6b7d; }
+    .pos-caja-pill.on { background:#e8f8ef; color:#1e8e4e; } .pos-caja-pill.off { background:#fdeceb; color:#e74c3c; }
+    .pos-caja-aviso { display:flex; align-items:center; gap:12px; background:#fff3e0; border:1px solid #f5c48b; color:#8a4b00; border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:.8rem; }
+    .pos-caja-aviso span { flex:1; }
+    .pos-comp { display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#eef1f5; padding:4px; border-radius:10px; margin-bottom:12px; }
+    .pos-comp label { cursor:pointer; }
+    .pos-comp input { position:absolute; opacity:0; pointer-events:none; }
+    .pos-comp span { display:flex; justify-content:center; align-items:center; gap:6px; padding:8px; border-radius:8px; font-size:.75rem; font-weight:800; color:#5a6b7d; }
+    .pos-comp input:checked + span { background:#fff; color:#2f7be6; box-shadow:0 2px 6px rgba(30,50,80,.12); }
+    .pos-comp input:focus-visible + span { outline:2px solid #2f7be6; }
+    .pos-hint { font-size:.7rem; color:#718096; margin:-4px 0 10px; }
+    .bdg.fac{background:#e7f2ff;color:#2f7be6}.bdg.rec{background:#eef1f5;color:#5a6b7d}
     .bdg.ok{background:#e8f8ef;color:#1e8e4e}.bdg.no{background:#fdeceb;color:#e74c3c}.bdg.cr{background:#fff3e0;color:#d35400}
 </style>

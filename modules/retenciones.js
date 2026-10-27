@@ -138,9 +138,20 @@ const RetencionesModule = {
         if (!numDocSustento || !fechaDocSustento) return Swal.fire('Faltan datos', 'Complete el número y fecha de la factura del proveedor.', 'warning');
         if (!this.impuestos.length) return Swal.fire('Sin impuestos', 'Agregue al menos un impuesto a retener.', 'warning');
 
+        const lineas = this._lineasCompra || [];
+        if (lineas.some(l => !l.ProductoID && !String(l.Descripcion || '').trim()))
+            return Swal.fire('Detalle incompleto', 'Hay líneas de gasto/servicio sin descripción.', 'warning');
+        if (lineas.some(l => !(l.Cantidad > 0) || (l.ProductoID && !Number.isInteger(l.Cantidad))))
+            return Swal.fire('Detalle incompleto', 'Revise las cantidades (los productos de inventario van en unidades enteras).', 'warning');
+        const baseTot = (parseFloat(document.getElementById('cpBaseImponible').value) || 0) + (parseFloat(document.getElementById('cpBaseImponible0').value) || 0);
+        const invTot = lineas.filter(l => l.ProductoID).reduce((s, l) => s + this._r2(l.Cantidad * l.CostoUnitario), 0);
+        if (baseTot - invTot > 0.009 && !document.getElementById('cpContra')?.value)
+            return Swal.fire('Falta la cuenta contable', `Hay $${(baseTot - invTot).toFixed(2)} que no son productos de inventario. Elija la cuenta del gasto/activo para que la compra quede contabilizada.`, 'warning');
+
         const user = JSON.parse(localStorage.getItem('user'));
         const payload = {
             SedeID: this.getSedeId(),
+            Detalles: lineas.map(l => ({ ProductoID: l.ProductoID, Descripcion: l.Descripcion, Cantidad: l.Cantidad, CostoUnitario: l.CostoUnitario, AplicaIva: l.AplicaIva })),
             UsuarioID: user ? user.UsuarioID : 1,
             Proveedor: {
                 Documento: documento,
@@ -364,7 +375,107 @@ const RetencionesModule = {
         const base  = parseFloat(document.getElementById('cpBaseImponible').value)  || 0;
         const base0 = parseFloat(document.getElementById('cpBaseImponible0').value) || 0;
         const iva   = parseFloat(document.getElementById('cpIva').value)            || 0;
-        document.getElementById('cpTotal').textContent = (base + base0 + iva).toFixed(2);
+        const retIva = parseFloat(document.getElementById('cpRetIva')?.value) || 0;
+        const retRenta = parseFloat(document.getElementById('cpRetRenta')?.value) || 0;
+        const total = base + base0 + iva;
+        document.getElementById('cpTotal').textContent = total.toFixed(2);
+        const neto = document.getElementById('cpNeto');
+        if (neto) neto.textContent = (total - retIva - retRenta).toFixed(2);
+    },
+
+    // ══════════════════ DETALLE DE COMPRA (trazabilidad de inventario) ══════════════════
+    _lineasCompra: [],
+    _seqLinea: 0,
+    _r2(n) { return Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100; },
+
+    _initDetalleCompra() {
+        const q = document.getElementById('cpProdBuscar');
+        if (!q || q._omniInit) return;
+        q._omniInit = true;
+        let t = null;
+        q.oninput = () => { clearTimeout(t); t = setTimeout(() => this.buscarProductoCompra(q.value), 250); };
+        ['cpRetIva', 'cpRetRenta'].forEach(id => { const e = document.getElementById(id); if (e) e.oninput = () => this.calcularTotalCompra(); });
+        api.get(`/sede/${this.getSedeId()}`).then(r => { this._tarifaIva = parseFloat(r.data?.ImpuestoPorcentaje ?? 15); }).catch(() => { this._tarifaIva = 15; });
+        this.renderLineasCompra();
+    },
+
+    async buscarProductoCompra(txt) {
+        const box = document.getElementById('cpProdResult');
+        if (!txt || txt.trim().length < 2) { box.style.display = 'none'; return; }
+        try {
+            const r = await api.get(`/ventas/productos?sedeId=${this.getSedeId()}&q=${encodeURIComponent(txt.trim())}`);
+            this._prodsCompra = (r.data.productos || []).filter(p => p.TipoItem !== 'SERVICIO');
+            box.style.display = 'block';
+            box.innerHTML = this._prodsCompra.length
+                ? this._prodsCompra.map((p, i) => `<div onclick="RetencionesModule.agregarLineaCompra(${i})"><span>${p.Nombre}</span><span style="color:#718096">stock ${p.StockActual} · costo $${Number(p.CostoCompra || 0).toFixed(2)}</span></div>`).join('')
+                : '<div style="cursor:default;color:#a0aab8">Sin coincidencias (créelo primero en Inventario)</div>';
+        } catch (_) { box.style.display = 'none'; }
+    },
+
+    agregarLineaCompra(idx) {
+        const p = idx === null ? null : (this._prodsCompra || [])[idx];
+        this._lineasCompra.push({
+            key: ++this._seqLinea,
+            ProductoID: p ? p.ProductoID : null,
+            Descripcion: p ? p.Nombre : '',
+            Cantidad: 1,
+            CostoUnitario: p ? Number(p.CostoCompra || 0) : 0,
+            AplicaIva: p ? !!Number(p.GravaIVA ?? 1) : true
+        });
+        const q = document.getElementById('cpProdBuscar'); if (q) q.value = '';
+        const box = document.getElementById('cpProdResult'); if (box) box.style.display = 'none';
+        this.renderLineasCompra();
+    },
+
+    quitarLineaCompra(key) {
+        this._lineasCompra = this._lineasCompra.filter(l => l.key !== key);
+        this.renderLineasCompra();
+    },
+
+    setLineaCompra(key, campo, val) {
+        const l = this._lineasCompra.find(x => x.key === key);
+        if (!l) return;
+        if (campo === 'Descripcion') l.Descripcion = val;
+        else if (campo === 'AplicaIva') l.AplicaIva = val === '1';
+        else l[campo] = parseFloat(val) || 0;
+        const cell = document.getElementById(`cpSub-${key}`);
+        if (cell) cell.textContent = this._r2(l.Cantidad * l.CostoUnitario).toFixed(2);
+        this._basesDesdeLineas();
+    },
+
+    renderLineasCompra() {
+        const tb = document.getElementById('cpDetBody');
+        if (!tb) return;
+        const ls = this._lineasCompra;
+        tb.innerHTML = !ls.length
+            ? '<tr><td colspan="6" class="cp-vacio">Sin detalle: ingrese las bases a mano (gasto sin inventario).</td></tr>'
+            : ls.map(l => `<tr>
+                <td>${l.ProductoID
+                    ? `<i class="fas fa-box" style="color:#2f7be6" title="Entra al inventario"></i> ${l.Descripcion}`
+                    : `<input class="input-neo" placeholder="Descripción del gasto/servicio" value="${(l.Descripcion || '').replace(/"/g, '&quot;')}" onchange="RetencionesModule.setLineaCompra(${l.key},'Descripcion',this.value)">`}</td>
+                <td><input type="number" min="${l.ProductoID ? 1 : 0.01}" step="${l.ProductoID ? 1 : 0.01}" class="input-neo" value="${l.Cantidad}" oninput="RetencionesModule.setLineaCompra(${l.key},'Cantidad',this.value)"></td>
+                <td><input type="number" min="0" step="0.0001" class="input-neo" value="${l.CostoUnitario}" oninput="RetencionesModule.setLineaCompra(${l.key},'CostoUnitario',this.value)"></td>
+                <td><select class="input-neo" onchange="RetencionesModule.setLineaCompra(${l.key},'AplicaIva',this.value)">
+                    <option value="1" ${l.AplicaIva ? 'selected' : ''}>${this._tarifaIva ?? 15}%</option>
+                    <option value="0" ${l.AplicaIva ? '' : 'selected'}>0%</option></select></td>
+                <td class="num" id="cpSub-${l.key}">${this._r2(l.Cantidad * l.CostoUnitario).toFixed(2)}</td>
+                <td><button type="button" class="btn-neo btn-danger" style="padding:6px 9px" onclick="RetencionesModule.quitarLineaCompra(${l.key})"><i class="fas fa-xmark"></i></button></td>
+            </tr>`).join('');
+        this._basesDesdeLineas();
+    },
+
+    /** Con detalle, las bases salen de las líneas (bloqueadas) y el IVA se sugiere con la tarifa vigente. */
+    _basesDesdeLineas() {
+        const conDet = this._lineasCompra.length > 0;
+        const b = document.getElementById('cpBaseImponible'), b0 = document.getElementById('cpBaseImponible0'), iv = document.getElementById('cpIva');
+        [b, b0].forEach(e => { if (e) e.readOnly = conDet; });
+        if (conDet) {
+            const base = this._r2(this._lineasCompra.filter(l => l.AplicaIva).reduce((s, l) => s + this._r2(l.Cantidad * l.CostoUnitario), 0));
+            const base0 = this._r2(this._lineasCompra.filter(l => !l.AplicaIva).reduce((s, l) => s + this._r2(l.Cantidad * l.CostoUnitario), 0));
+            b.value = base.toFixed(2); b0.value = base0.toFixed(2);
+            iv.value = this._r2(base * (this._tarifaIva ?? 15) / 100).toFixed(2);
+        }
+        this.calcularTotalCompra();
     },
 
     togglePagoCompra() {
@@ -377,7 +488,7 @@ const RetencionesModule = {
         if (!p.length) return '<option value="">(plan de cuentas no disponible)</option>';
         const orden = { GASTO: 0, ACTIVO: 1, PASIVO: 2, INGRESO: 3, PATRIMONIO: 4, ORDEN: 5 };
         const tipos = [...new Set(p.map(c => c.Tipo))].sort((a, b) => (orden[a] ?? 9) - (orden[b] ?? 9));
-        return '<option value="">— clasificar después —</option>' + tipos.map(t =>
+        return `<option value="">${this._contraPlaceholder || '— seleccione la cuenta —'}</option>` + tipos.map(t =>
             `<optgroup label="${t}">` + p.filter(c => c.Tipo === t).map(c => `<option value="${c.CuentaID}">${c.Codigo} · ${c.Nombre}</option>`).join('') + '</optgroup>'
         ).join('');
     },
@@ -396,6 +507,7 @@ const RetencionesModule = {
             this._planCompra = (resPlan.data && resPlan.data.cuentas) || [];
             const selContra = document.getElementById('cpContra');
             if (selContra) selContra.innerHTML = this._contraOptions();
+            this._initDetalleCompra();
 
             const centros = (resCC.data && resCC.data.centros) || [];
             const proys = (resPR.data && resPR.data.proyectos) || [];
@@ -433,23 +545,32 @@ const RetencionesModule = {
                 return;
             }
             body.innerHTML = lista.map(c => {
+                const anulada = c.EstadoCompra === 'ANULADA';
                 const declarable = c.Autorizacion && String(c.Autorizacion).trim();
                 const badgeAts = declarable
                     ? '<span class="badge-sri badge-autorizado">DECLARA</span>'
                     : '<span class="badge-sri badge-pendiente" title="Sin número de autorización SRI">S/COMPROB.</span>';
-                const pago = c.MovimientoID
-                    ? `<span class="badge-sri badge-autorizado" title="Movimiento #${c.MovimientoID}">${c.MetodoPagoNombre || 'PAGADO'}</span>`
-                    : `<span class="badge-sri badge-pendiente">PENDIENTE</span>
-                       <button class="btn-neo" style="padding:6px 10px; margin-left:5px; color:var(--hotel-success);" title="Marcar como pagada" onclick="RetencionesModule.marcarCompraPagada(${c.CompraID})"><i class="fas fa-money-check-alt"></i></button>`;
+                const pagadaCxP = c.CxPEstado === 'PAGADA';
+                const pago = anulada
+                    ? '<span class="badge-sri badge-rechazado">ANULADA</span>'
+                    : c.MovimientoID
+                    ? `<span class="badge-sri badge-autorizado" title="Movimiento #${c.MovimientoID}${c.CajaPagoID ? ' · caja #' + c.CajaPagoID : ' · banco'}">${c.MetodoPagoNombre || 'PAGADO'}</span>`
+                    : pagadaCxP
+                    ? '<span class="badge-sri badge-autorizado" title="Pagada desde Cuentas por Pagar">PAGADA (CxP)</span>'
+                    : `<span class="badge-sri badge-pendiente" title="Saldo CxP $${Number(c.CxPSaldo || 0).toFixed(2)}">PENDIENTE</span>
+                       <button class="btn-neo" style="padding:6px 10px; margin-left:5px; color:var(--hotel-success);" title="Registrar pago" onclick="RetencionesModule.marcarCompraPagada(${c.CompraID})"><i class="fas fa-money-check-alt"></i></button>`;
                 return `
-                <tr>
-                    <td>${c.ProveedorNombre}<br><small style="opacity:0.6;">${c.ProveedorDocumento}</small></td>
+                <tr style="${anulada ? 'opacity:.55;' : ''}">
+                    <td>${c.ProveedorNombre}<br><small style="opacity:0.6;">${c.ProveedorDocumento} · #${c.CompraID}${c.LineasDetalle ? ` · ${c.LineasDetalle} ítem(s)` : ''}</small></td>
                     <td>${c.Establecimiento}-${c.PuntoEmision}-${c.Secuencial}</td>
                     <td>${this.formatFecha ? this.formatFecha(c.FechaEmision) : String(c.FechaEmision).substring(0,10)}</td>
-                    <td>$${parseFloat(c.Total).toFixed(2)}</td>
-                    <td>${badgeAts}${!c.AsientoID ? `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#d35400;background:#fff3e0;" title="Falta clasificar la cuenta contable" onclick="RetencionesModule.clasificarCompra(${c.CompraID})"><i class="fas fa-scale-unbalanced"></i> Clasificar</button>` : `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#2e7d32;" title="Ver asiento contable" onclick="RetencionesModule.verAsientoCompra(${c.CompraID}, ${c.AsientoID})"><i class="fas fa-book"></i> Ver asiento</button>`}</td>
+                    <td>$${parseFloat(c.Total).toFixed(2)}${(Number(c.ValorRetencionIva) + Number(c.ValorRetencionRenta)) > 0 ? `<br><small style="opacity:.65">neto $${(c.Total - c.ValorRetencionIva - c.ValorRetencionRenta).toFixed(2)}</small>` : ''}</td>
+                    <td>${anulada ? '<span class="badge-sri badge-rechazado" title="' + (c.MotivoAnulacion || '').replace(/"/g, '&quot;') + '">NO DECLARA</span>' : badgeAts}${anulada ? '' : !c.AsientoID ? `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#d35400;background:#fff3e0;" title="Falta clasificar la cuenta contable" onclick="RetencionesModule.clasificarCompra(${c.CompraID})"><i class="fas fa-scale-unbalanced"></i> Clasificar</button>` : `<br><button class="btn-neo" style="padding:5px 9px;margin-top:4px;color:#2e7d32;" title="Ver asiento contable" onclick="RetencionesModule.verAsientoCompra(${c.CompraID}, ${c.AsientoID})"><i class="fas fa-book"></i> Ver asiento</button>`}</td>
                     <td>${pago}</td>
-                    <td><button class="btn-neo btn-danger" style="padding:8px 12px;" onclick="RetencionesModule.eliminarCompra(${c.CompraID})"><i class="fas fa-trash"></i></button></td>
+                    <td style="white-space:nowrap">
+                        <button class="btn-neo" style="padding:8px 11px;" title="Trazabilidad completa" onclick="RetencionesModule.trazabilidadCompra(${c.CompraID})"><i class="fas fa-route"></i></button>
+                        ${anulada ? '' : `<button class="btn-neo btn-danger" style="padding:8px 11px;" title="Anular compra (con reverso)" onclick="RetencionesModule.anularCompra(${c.CompraID})"><i class="fas fa-ban"></i></button>`}
+                    </td>
                 </tr>
             `;
             }).join('');
@@ -469,13 +590,13 @@ const RetencionesModule = {
             title: 'Clasificar compra',
             html: `<div style="text-align:left;font-size:.85rem;color:#718096">¿Qué se compró? Se genera el asiento (DEBE la cuenta que elijas + IVA / HABER retenciones + Proveedores o Caja).</div>
                    <select id="swc" class="swal2-input" style="display:block">${this._contraOptions()}</select>
+                   <div style="text-align:left;font-size:.72rem;color:#8b98a8">Si la compra tiene productos en el detalle, esa parte va a Inventario automáticamente; la cuenta elegida toma el resto.</div>
                    ${hayDim ? `<select id="swcc" class="swal2-input" style="display:block">${ccOpts}</select>
                    <select id="swpr" class="swal2-input" style="display:block">${prOpts}</select>` : ''}`,
             showCancelButton: true, confirmButtonText: 'Generar asiento', cancelButtonText: 'Cancelar',
             preConfirm: () => {
                 const v = document.getElementById('swc').value;
-                if (!v) { Swal.showValidationMessage('Elige una cuenta'); return false; }
-                return { cuenta: v, cc: document.getElementById('swcc')?.value || null, pr: document.getElementById('swpr')?.value || null };
+                return { cuenta: v || null, cc: document.getElementById('swcc')?.value || null, pr: document.getElementById('swpr')?.value || null };
             }
         });
         if (!r.isConfirmed) return;
@@ -511,11 +632,11 @@ const RetencionesModule = {
         if (!formValues) return;
 
         try {
-            await api.post(`/compras/${compraId}/marcar-pagada`, formValues);
-            window.Toast.fire({ icon: 'success', title: 'Compra marcada como pagada' });
+            const rp = await api.post(`/compras/${compraId}/marcar-pagada`, formValues);
+            window.Toast.fire({ icon: 'success', title: `Pago registrado · $${Number(rp.data.monto || 0).toFixed(2)}`, text: rp.data.asientoError ? 'Atención: ' + rp.data.asientoError : '' });
             this.cargarCompras();
         } catch (err) {
-            Swal.fire('Error', err.response?.data?.error || 'No se pudo registrar el pago.', 'error');
+            Swal.fire('No se registró el pago', err.response?.data?.error || 'No se pudo registrar el pago.', 'error');
         }
     },
 
@@ -564,28 +685,78 @@ const RetencionesModule = {
 
         try {
             const r = await api.post('/compras', payload);
-            window.Toast.fire({
-                icon: r.data.asientoGenerado ? 'success' : 'info',
-                title: r.data.asientoGenerado ? 'Compra registrada y contabilizada' : 'Compra registrada — falta clasificar la cuenta'
-            });
+            if (r.data.asientoError) {
+                Swal.fire('Compra registrada sin asiento', `La compra #${r.data.compraId} quedó registrada pero el asiento no se generó: ${r.data.asientoError}. Use "Clasificar" cuando lo corrija.`, 'warning');
+            } else {
+                window.Toast.fire({ icon: 'success', title: `Compra #${r.data.compraId} registrada y contabilizada`, text: `Neto $${Number(r.data.neto).toFixed(2)}` });
+            }
+            this._lineasCompra = [];
+            this.renderLineasCompra();
+            const sc = document.getElementById('cpContra'); if (sc) sc.value = '';
             ['cpProvSelect','cpProvDocumento','cpProvRazonSocial','cpNumeroComprobante','cpAutorizacion','cpFechaEmision','cpBaseImponible','cpBaseImponible0','cpIva','cpRetIva','cpRetRenta']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
             document.getElementById('cpTotal').textContent = '0.00';
             this.cargarCompras();
             this.cargarProveedoresCache();
         } catch (err) {
-            Swal.fire('Error', err.response?.data?.error || 'No se pudo registrar la compra.', 'error');
+            Swal.fire('No se registró la compra', err.response?.data?.error || 'No se pudo registrar la compra.', 'error');
         }
     },
 
-    async eliminarCompra(id) {
-        const confirm = await Swal.fire({ title: '¿Eliminar compra?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, eliminar' });
-        if (!confirm.isConfirmed) return;
+    /** Las compras no se borran: se anulan con motivo y reverso de inventario, caja, CxP y asientos. */
+    async anularCompra(id) {
+        const r = await Swal.fire({
+            title: `¿Anular la compra #${id}?`,
+            html: '<div style="text-align:left;font-size:.82rem;color:#5a6b7d">Se revierte todo lo que generó: <b>stock</b> de los productos, <b>dinero</b> pagado (reingreso por el mismo medio; en efectivo a su caja abierta), <b>cuenta por pagar</b> y <b>asientos</b>. La compra queda visible como ANULADA, con su motivo.</div>',
+            input: 'text', inputPlaceholder: 'Motivo de la anulación (obligatorio)',
+            icon: 'warning', showCancelButton: true, confirmButtonText: 'Anular compra', cancelButtonText: 'Cancelar',
+            inputValidator: v => (!v || v.trim().length < 5) ? 'Indique el motivo (mínimo 5 caracteres)' : undefined
+        });
+        if (!r.isConfirmed) return;
         try {
-            await api.delete(`/compras/${id}`);
+            const res = await api.post(`/compras/${id}/anular`, { motivo: r.value.trim() });
+            Swal.fire({ icon: 'success', title: 'Compra anulada', html: `<div style="text-align:left;font-size:.82rem">${(res.data.reversos || []).map(x => '• ' + x).join('<br>') || 'Sin movimientos que revertir.'}</div>` });
             this.cargarCompras();
         } catch (err) {
-            Swal.fire('Error', err.response?.data?.error || 'No se pudo eliminar.', 'error');
+            Swal.fire('No se anuló', err.response?.data?.error || 'No se pudo anular.', 'error');
+        }
+    },
+
+    // Compatibilidad con llamadas antiguas
+    eliminarCompra(id) { return this.anularCompra(id); },
+
+    /** Traza completa de una compra: detalle, kardex, pagos/caja, CxP, asientos y retenciones. */
+    async trazabilidadCompra(id) {
+        try {
+            const { data: d } = await api.get(`/compras/detalle/${id}`);
+            const c = d.compra;
+            const f = n => '$' + Number(n || 0).toFixed(2);
+            const fh = x => x ? String(x).replace('T', ' ').slice(0, 16) : '';
+            const tabla = (cols, rows) => rows.length
+                ? `<table><thead><tr>${cols.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(x => `<td>${x ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+                : '<div style="font-size:.75rem;color:#a0aab8;text-align:left">— ninguno —</div>';
+            const html = `<div class="cp-traza">
+                <div class="kv">
+                    <div><b>Proveedor</b>${c.ProveedorNombre}<br><small>${c.ProveedorDocumento}</small></div>
+                    <div><b>Comprobante</b>${c.TipoComprobante} · ${c.Establecimiento}-${c.PuntoEmision}-${c.Secuencial}<br><small>${c.Autorizacion ? 'Aut. ' + c.Autorizacion : 'Sin autorización SRI (no va al ATS)'}</small></div>
+                    <div><b>Estado</b>${c.EstadoCompra}${c.EstadoCompra === 'ANULADA' ? `<br><small>${fh(c.FechaAnulacion)} · ${c.NombreUsuarioAnula || ''} — ${c.MotivoAnulacion || ''}</small>` : ''}</div>
+                    <div><b>Fecha emisión</b>${String(c.FechaEmision).slice(0, 10)}</div>
+                    <div><b>Registrada</b>${fh(c.FechaRegistro)} · ${c.NombreUsuario || c.UsuarioRegistro || ''}</div>
+                    <div><b>Sustento / forma pago</b>${c.SustentoTributario} / ${c.FormaPago}</div>
+                    <div><b>Base IVA / Base 0%</b>${f(c.BaseImponible)} / ${f(c.BaseImponible0)}</div>
+                    <div><b>IVA / Total</b>${f(c.IVA)} / ${f(c.Total)}</div>
+                    <div><b>Retenciones → Neto</b>${f(Number(c.ValorRetencionIva) + Number(c.ValorRetencionRenta))} → <b style="display:inline;color:#1a365d;font-size:.78rem">${f(d.neto)}</b></div>
+                </div>
+                <h5>Detalle</h5>${tabla(['Ítem', 'Cant.', 'Costo u.', 'IVA', 'Subtotal'], d.lineas.map(l => [(l.ProductoID ? '📦 ' : '') + (l.ProductoNombre || l.Descripcion), Number(l.Cantidad), f(l.CostoUnitario), l.AplicaIva ? 'Sí' : '0%', f(l.Subtotal)]))}
+                <h5>Kardex (inventario)</h5>${tabla(['Fecha', 'Producto', 'Movimiento', 'Cant.', 'Costo u.', 'Saldo'], d.kardex.map(k => [fh(k.FechaMovimiento), k.Producto, k.Origen === 'ANULA_COMPRA' ? 'SALIDA (anulación)' : 'ENTRADA', k.Cantidad, f(k.CostoUnitario), k.StockResultante]))}
+                <h5>Dinero (caja / banco)</h5>${tabla(['Mov.', 'Fecha', 'Tipo', 'Medio', 'Caja', 'Monto', 'Detalle'], d.movimientosCaja.map(m => ['#' + m.MovimientoID, fh(m.FechaMovimiento), m.TipoMovimiento, m.Metodo || '', m.CajaID ? '#' + m.CajaID : 'Banco/Admin', f(m.Monto), m.Observacion]))}
+                <h5>Cuenta por pagar</h5>${d.cxp ? tabla(['CxP', 'Original', 'Saldo', 'Estado', 'Vence'], [['#' + d.cxp.CxPID, f(d.cxp.MontoOriginal), f(d.cxp.Saldo), d.cxp.Estado, String(d.cxp.FechaVencimiento).slice(0, 10)]]) + tabla(['Pago', 'Fecha', 'Monto', 'Medio', 'Mov. caja', 'Asiento'], d.pagos.map(p => ['#' + p.PagoID, String(p.Fecha).slice(0, 10), f(p.Monto), p.MetodoPago || '', p.CajaMovimientoID ? '#' + p.CajaMovimientoID : '', p.AsientoID ? '#' + p.AsientoID : ''])) : '<div style="font-size:.75rem;color:#a0aab8;text-align:left">Compra de contado (sin CxP)</div>'}
+                <h5>Asientos contables</h5>${tabla(['Asiento', 'Fecha', 'Origen', 'Glosa', 'Debe', 'Haber', 'Estado'], d.asientos.map(a => ['N.º ' + a.Numero, String(a.Fecha).slice(0, 10), a.Origen, a.Glosa, f(a.TotalDebe), f(a.TotalHaber), a.Estado]))}
+                <h5>Retenciones emitidas</h5>${tabla(['Secuencial', 'Fecha', 'Retenido', 'SRI'], d.retenciones.map(r => ['001-001-' + r.Secuencial, String(r.FechaEmision).slice(0, 10), f(r.TotalRetenido), r.EstadoSRI]))}
+            </div>`;
+            Swal.fire({ title: `Trazabilidad · Compra #${c.CompraID}`, html, width: 980, confirmButtonText: 'Cerrar' });
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.error || 'No se pudo cargar la trazabilidad.', 'error');
         }
     },
 

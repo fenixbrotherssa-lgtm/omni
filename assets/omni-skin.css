@@ -1,0 +1,253 @@
+/* =====================================================================
+   OMNI CORE · omni-skin.css
+   Capa de diseño OmniCore para las pantallas heredadas de MasterHotel
+   (inventario, facturación, caja, activos, mantenimiento, personal,
+   sedes, usuarios). Esas vistas usan clases neomórficas propias
+   (btn-neo, input-neo, tabla-neo, modal-neo...). En vez de reescribir
+   su HTML/JS, aquí se redibujan con el lenguaje visual de los módulos
+   OmniCore (omni-mod / omni-table / omni-btn): fondo #eef1f5, tarjetas
+   blancas, acento #2f7be6, cabeceras de tabla #1a365d.
+
+   Todo va bajo #viewport para ganar especificidad a los <style> de
+   cada vista sin usar !important salvo donde hay estilos en línea.
+   Solo pantalla: la impresión (actas, roles, arqueos) no se toca.
+   ===================================================================== */
+
+/* Variables que las vistas heredadas leen desde estilos en línea */
+#viewport {
+    --hotel-blue: #1a365d;
+    --hotel-gold: #2f7be6;
+    --hotel-bg: #ffffff;
+    --hotel-shadow-dark: rgba(30, 50, 80, .08);
+    --hotel-shadow-light: rgba(255, 255, 255, 0);
+    --hotel-success: #1e8e4e;
+    --hotel-danger: #e74c3c;
+    --blue: #1a365d;
+    --gold: #2f7be6;
+    --bg: #ffffff;
+    --sd: rgba(30, 50, 80, .08);
+    --sl: rgba(255, 255, 255, 0);
+}
+
+@media screen {
+
+/* ---------- Contenedor y cabecera ---------- */
+#viewport .modulo-container {
+    padding: 28px 36px; background: #eef1f5; min-height: 100%;
+    font-family: 'Inter', 'Segoe UI', sans-serif; color: #2c3e50; animation: none;
+}
+#viewport .header-modulo,
+#viewport .page-header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+}
+#viewport .header-left { display: flex; align-items: center; gap: 16px; }
+#viewport .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#viewport .header-modulo h2,
+#viewport .page-header h2 {
+    margin: 0; font-size: 1.3rem; font-weight: 900; letter-spacing: 1.5px;
+    color: #1a365d; text-transform: uppercase;
+}
+#viewport .header-modulo h2 i,
+#viewport .page-header h2 i { color: #2f7be6; margin-right: 6px; }
+#viewport .section-title { color: #1a365d; font-weight: 900; letter-spacing: .5px; }
+
+/* ---------- Botones ---------- */
+#viewport .btn-neo {
+    border: none; border-radius: 10px; padding: 10px 16px;
+    background: #e2e7ee; color: #5a6b7d; box-shadow: none;
+    font-weight: 800; font-size: .78rem; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .2s, color .2s; transform: none;
+}
+#viewport .btn-neo:hover { background: #d3dae4; box-shadow: none; transform: none; }
+#viewport .btn-neo:active { box-shadow: none; transform: translateY(1px); }
+#viewport .btn-neo:disabled { opacity: .55; cursor: not-allowed; }
+#viewport .btn-neo i { color: inherit; }
+
+#viewport .btn-back {
+    width: 40px; height: 40px; padding: 0; border-radius: 10px;
+    background: #e2e7ee; color: #5a6b7d;
+}
+#viewport .btn-save,
+#viewport .btn-prim,
+#viewport .btn-print { background: #2f7be6; color: #fff; }
+#viewport .btn-save:hover,
+#viewport .btn-prim:hover,
+#viewport .btn-print:hover { background: #1a5fc0; color: #fff; }
+#viewport .btn-gold,
+#viewport .btn-qr-bulk { background: #e7f2ff; color: #2f7be6; }
+#viewport .btn-gold:hover,
+#viewport .btn-qr-bulk:hover { background: #d6e8ff; }
+#viewport .btn-green { background: #e8f8ef; color: #1e8e4e; }
+#viewport .btn-green:hover { background: #d3f1e0; }
+#viewport .btn-danger,
+#viewport .btn-delete { background: #fdeceb; color: #e74c3c; }
+#viewport .btn-danger:hover,
+#viewport .btn-delete:hover { background: #f9d6d3; color: #c0392b; }
+#viewport .btn-edit { background: #e7f2ff; color: #2f7be6; }
+#viewport .btn-sm { padding: 6px 11px; font-size: .72rem; border-radius: 8px; }
+
+/* ---------- Campos ---------- */
+#viewport .input-neo,
+#viewport .input-group-neo input {
+    border: 1px solid #d5dce5; border-radius: 9px; background: #fff;
+    box-shadow: none; color: #2c3e50; font-weight: 600; font-size: .82rem;
+    outline: none; transition: border-color .15s;
+}
+#viewport .input-neo { padding: 9px 11px; }
+#viewport .input-neo:focus,
+#viewport .input-group-neo input:focus { border-color: #2f7be6; box-shadow: 0 0 0 3px rgba(47, 123, 230, .12); }
+#viewport .input-neo:disabled,
+#viewport .input-neo[readonly] { background: #f6f8fb; color: #718096; }
+#viewport .label-hint,
+#viewport .field-label {
+    font-size: .68rem; font-weight: 800; color: #5a6b7d;
+    text-transform: uppercase; letter-spacing: .3px; margin: 0 0 5px 2px;
+}
+#viewport .input-group-neo {
+    background: #fff; border: 1px solid #e3e8ef; border-radius: 10px; box-shadow: none;
+}
+#viewport .input-group-neo label { color: #5a6b7d; }
+
+/* ---------- Barras de filtros / tarjetas ---------- */
+#viewport .toolbar-filtro,
+#viewport .filtros-card,
+#viewport .filtros-historial {
+    background: #fff; border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 4px 14px rgba(30, 50, 80, .07); border: none;
+}
+#viewport .tabla-container-neo,
+#viewport .tabla-wrap,
+#viewport .nomina-section,
+#viewport .panel-config-firma,
+#viewport .card-firma-status,
+#viewport .bot-status-card,
+#viewport .bot-qr-card,
+#viewport .historial-container {
+    background: #fff; border-radius: 14px; padding: 20px;
+    box-shadow: 0 4px 14px rgba(30, 50, 80, .07); border: none;
+}
+#viewport .card-metric,
+#viewport .stat-card {
+    background: #fff; border-radius: 12px; padding: 14px 16px;
+    box-shadow: 0 4px 12px rgba(30, 50, 80, .07); border: none;
+}
+#viewport .metric-val,
+#viewport .stat-num { font-family: 'Consolas', monospace; font-weight: 900; color: #1a365d; }
+#viewport .stat-lbl { color: #718096; }
+#viewport .totales-box {
+    background: #1a365d; color: #fff; border-radius: 12px; box-shadow: none; padding: 14px 18px;
+}
+#viewport .totales-box h2,
+#viewport .totales-box h4 { color: #fff; font-family: 'Consolas', monospace; }
+
+/* Tarjetas de catálogo (productos, activos) */
+#viewport .prod-card,
+#viewport .card-activo {
+    background: #fff; border-radius: 14px; border: 1px solid #e8edf3;
+    box-shadow: 0 4px 14px rgba(30, 50, 80, .06); transition: box-shadow .2s, transform .2s;
+}
+#viewport .prod-card:hover,
+#viewport .card-activo:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(30, 50, 80, .12); }
+#viewport .price-tag { color: #1a365d; font-family: 'Consolas', monospace; }
+#viewport .stock-badge {
+    background: #eef1f5; box-shadow: none; border-radius: 6px; color: #5a6b7d;
+}
+
+/* ---------- Tablas ---------- */
+#viewport .tabla-neo,
+#viewport .mt-table,
+#viewport .ps-table,
+#viewport .nomina-table {
+    width: 100%; border-collapse: collapse; border-spacing: 0; font-size: .8rem;
+}
+#viewport .tabla-neo th,
+#viewport .mt-table th,
+#viewport .ps-table th,
+#viewport .nomina-table th {
+    background: #1a365d; color: #fff; padding: 10px 12px; text-align: left;
+    font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+    position: sticky; top: 0; z-index: 1;
+}
+#viewport .tabla-neo th:first-child,
+#viewport .mt-table th:first-child,
+#viewport .ps-table th:first-child,
+#viewport .nomina-table th:first-child { border-radius: 8px 0 0 0; }
+#viewport .tabla-neo th:last-child,
+#viewport .mt-table th:last-child,
+#viewport .ps-table th:last-child,
+#viewport .nomina-table th:last-child { border-radius: 0 8px 0 0; }
+#viewport .tabla-neo td,
+#viewport .mt-table td,
+#viewport .ps-table td,
+#viewport .nomina-table td,
+#viewport .tabla-neo tr td:first-child,
+#viewport .tabla-neo tr td:last-child,
+#viewport .mt-table td:first-child,
+#viewport .mt-table td:last-child,
+#viewport .ps-table td:first-child,
+#viewport .ps-table td:last-child,
+#viewport .nomina-table td:first-child,
+#viewport .nomina-table td:last-child {
+    background: transparent; padding: 9px 12px; border-radius: 0;
+    border-bottom: 1px solid #eef1f5; box-shadow: none;
+}
+#viewport .tabla-neo tbody tr:hover td,
+#viewport .mt-table tbody tr:hover td,
+#viewport .ps-table tbody tr:hover td,
+#viewport .nomina-table tbody tr:hover td { background: #f6f9fd; }
+
+/* ---------- Pestañas ---------- */
+#viewport .tabs-wrapper,
+#viewport .tabs-caja {
+    display: flex; gap: 6px; flex-wrap: wrap; background: #fff; padding: 6px;
+    border-radius: 12px; box-shadow: 0 4px 12px rgba(30, 50, 80, .06); margin-bottom: 18px;
+}
+#viewport .tab-btn {
+    border: none; background: transparent; color: #5a6b7d; box-shadow: none;
+    border-radius: 8px; padding: 9px 16px; font-weight: 800; font-size: .74rem; letter-spacing: .3px;
+}
+#viewport .tab-btn:hover { background: #eef1f5; }
+#viewport .tab-btn.active { background: #2f7be6; color: #fff; box-shadow: none; }
+
+/* ---------- Estados / badges ---------- */
+#viewport .status-pill,
+#viewport .badge-sri,
+#viewport .badge-metodo,
+#viewport .badge-rol {
+    padding: 3px 8px; border-radius: 6px; font-size: .64rem; font-weight: 800; border: none;
+}
+#viewport .status-pill.active,
+#viewport .badge-autorizado { background: #e8f8ef; color: #1e8e4e; }
+#viewport .status-pill.inactive,
+#viewport .badge-rechazado { background: #fdeceb; color: #e74c3c; }
+#viewport .badge-pendiente { background: #fff3e0; color: #d35400; }
+#viewport .badge-firmado { background: #e7f2ff; color: #2f7be6; }
+#viewport .badge-metodo,
+#viewport .badge-rol { background: #eef1f5; color: #5a6b7d; }
+#viewport .text-ingreso { color: #1e8e4e; }
+#viewport .text-egreso { color: #e74c3c; }
+
+/* ---------- Modales ---------- */
+#viewport .modal-neo,
+#viewport .overlay,
+#viewport .overlay-admin,
+#viewport .abm-bg,
+#viewport .omni-cfg-bg {
+    background: rgba(15, 25, 40, .55); backdrop-filter: none;
+}
+#viewport .modal-content-neo,
+#viewport .modal-card {
+    background: #fff; border-radius: 16px; padding: 26px; border: none;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .3);
+}
+#viewport .modal-content-neo h3,
+#viewport .modal-card h3,
+#viewport #modalCajaTitulo,
+#viewport #modalTitulo { color: #1a365d; font-weight: 900; letter-spacing: 1px; }
+#viewport .modal-content-neo::-webkit-scrollbar-thumb { background: #c5cfdb; }
+#viewport .modal-actions,
+#viewport .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+} /* @media screen */

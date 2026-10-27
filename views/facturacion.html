@@ -87,6 +87,22 @@
         margin-top: 20px; text-align: right; box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
     }
     .totales-box h4 { margin: 5px 0; font-size: 1rem; font-weight: 400; }
+    .cp-det { background:#f6f8fb; border:1px solid #e3e8ef; border-radius:12px; padding:12px; margin-bottom:15px; }
+    .cp-det-bar { display:flex; gap:8px; }
+    .cp-det-bar .input-neo { flex:1; margin-bottom:0; }
+    .cp-result { background:#fff; border:1px solid #e2e7ee; border-radius:10px; max-height:200px; overflow:auto; margin-top:6px; }
+    .cp-result div { padding:8px 12px; font-size:.8rem; cursor:pointer; border-bottom:1px solid #f1f4f8; display:flex; justify-content:space-between; }
+    .cp-result div:hover { background:#f0f6ff; }
+    .cp-det-tabla { margin-top:10px; }
+    .cp-det-tabla .input-neo { margin:0; padding:6px 8px; }
+    #viewport .cp-det .cp-vacio { text-align:center; color:#a0aab8; font-size:.75rem; font-weight:600; }
+    .cp-nota { font-size:.68rem; color:#718096; margin:8px 0 0; font-weight:600; }
+    .cp-traza h5 { margin:16px 0 6px; color:#1a365d; font-size:.78rem; text-transform:uppercase; letter-spacing:.5px; }
+    .cp-traza table { width:100%; border-collapse:collapse; font-size:.75rem; text-align:left; }
+    .cp-traza th { background:#1a365d; color:#fff; padding:6px 8px; font-size:.62rem; text-transform:uppercase; }
+    .cp-traza td { padding:6px 8px; border-bottom:1px solid #eef1f5; }
+    .cp-traza .kv { display:grid; grid-template-columns:repeat(3,1fr); gap:6px 16px; font-size:.78rem; text-align:left; }
+    .cp-traza .kv b { display:block; font-size:.62rem; color:#718096; text-transform:uppercase; }
     .totales-box h2 { margin: 10px 0 0 0; font-size: 1.8rem; color: var(--hotel-gold); }
 </style>
 
@@ -590,6 +606,20 @@
                             </div>
                         </div>
 
+                        <div class="cp-det">
+                            <label class="label-hint">Detalle de la compra — productos que entran al inventario</label>
+                            <div class="cp-det-bar">
+                                <input type="text" id="cpProdBuscar" class="input-neo" placeholder="Buscar producto del inventario por nombre o código…" autocomplete="off">
+                                <button type="button" class="btn-neo" onclick="RetencionesModule.agregarLineaCompra(null)" title="Línea sin inventario (servicio, gasto)"><i class="fas fa-plus"></i> Gasto / servicio</button>
+                            </div>
+                            <div id="cpProdResult" class="cp-result" style="display:none;"></div>
+                            <table class="tabla-neo cp-det-tabla">
+                                <thead><tr><th>Descripción</th><th style="width:80px">Cant.</th><th style="width:110px">Costo unit. s/IVA</th><th style="width:78px">IVA</th><th style="width:96px" class="num">Subtotal</th><th style="width:40px"></th></tr></thead>
+                                <tbody id="cpDetBody"><tr><td colspan="6" class="cp-vacio">Sin detalle: ingrese las bases a mano (gasto sin inventario).</td></tr></tbody>
+                            </table>
+                            <p class="cp-nota"><i class="fas fa-circle-info"></i> Con detalle, las bases se calculan solas, el stock y el costo promedio se actualizan, y cada producto queda en el kardex con esta compra como origen.</p>
+                        </div>
+
                         <div style="display:flex; gap:15px;">
                             <div style="flex:1;">
                                 <label class="label-hint">Base Imponible (Gravada IVA)</label>
@@ -617,12 +647,13 @@
 
                         <div class="totales-box">
                             <h2>TOTAL: $<span id="cpTotal">0.00</span></h2>
+                            <h4>NETO A PAGAR (total − retenciones): $<span id="cpNeto">0.00</span></h4>
                         </div>
 
                         <div style="margin-top:15px;">
-                            <label class="label-hint">Cuenta contable — ¿qué se compró? (inventario, gasto, activo…)</label>
+                            <label class="label-hint">Cuenta contable del gasto / activo</label>
                             <select id="cpContra" class="input-neo"></select>
-                            <small style="display:block; color:#8b98a8; font-size:0.72rem;">Si la dejas en "clasificar después" se registra la compra pero <b>no se genera asiento</b> hasta clasificarla.</small>
+                            <small style="display:block; color:#8b98a8; font-size:0.72rem;">Los productos del detalle van solos a <b>Inventario</b>. Esta cuenta es <b>obligatoria</b> para todo valor que no sea producto de inventario (gastos, servicios, activos). Cada compra genera su asiento al registrarse.</small>
                         </div>
 
                         <div id="cpDimWrap" style="margin-top:12px; display:none; gap:10px; grid-template-columns:1fr 1fr;">
@@ -663,7 +694,7 @@
                         <label class="label-hint">Buscar por proveedor o documento</label>
                         <input type="text" id="cpBuscar" class="input-neo" placeholder="Nombre o documento" onkeyup="RetencionesModule.cargarCompras()">
                         <table class="tabla-neo">
-                            <thead><tr><th>Proveedor</th><th>Comprobante</th><th>Fecha</th><th>Total</th><th>ATS</th><th>Pago</th><th></th></tr></thead>
+                            <thead><tr><th>Proveedor</th><th>Comprobante</th><th>Fecha</th><th>Total</th><th>ATS / Asiento</th><th>Pago</th><th></th></tr></thead>
                             <tbody id="cpTablaBody"></tbody>
                         </table>
                     </div>

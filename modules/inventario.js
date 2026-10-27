@@ -222,10 +222,10 @@ const InventarioModule = {
                     </button>
 
                     <div style="display:flex; gap:5px;">
-                        <button class="btn-neo" style="flex:1" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'INGRESO')">
-                            <i class="fas fa-plus"></i> Ingreso
+                        <button class="btn-neo" style="flex:1" title="Historial trazable: compras, ventas y ajustes" onclick="InventarioModule.verKardex(${p.ProductoID})">
+                            <i class="fas fa-list-check"></i> Kardex
                         </button>
-                        <button class="btn-neo" style="flex:1" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')">
+                        <button class="btn-neo" style="flex:1" title="Sobrante / faltante de conteo físico" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')">
                             <i class="fas fa-tools"></i> Ajuste
                         </button>
                         <button class="btn-neo" style="flex:0 0 auto; color:#e74c3c;" title="Eliminar" onclick="InventarioModule.eliminarProducto(${p.ProductoID})">
@@ -239,30 +239,69 @@ const InventarioModule = {
     },
 
     // --- GESTIÓN DE MOVIMIENTOS ---
+    // Las ENTRADAS de mercadería se registran como Compra (Facturación → Compras),
+    // con proveedor, comprobante y costo: así el kardex y la contabilidad cuadran.
+    // Aquí solo quedan los ajustes de conteo físico, con motivo obligatorio.
     async abrirModalMovimiento(id, tipo) {
         const { value: formValues } = await Swal.fire({
-            title: tipo === 'INGRESO' ? 'Registrar Ingreso' : 'Registrar Ajuste Negativo',
-            html: '<input id="swal-cant" type="number" min="1" class="swal2-input" placeholder="Cantidad">' +
-                  '<input id="swal-motivo" type="text" class="swal2-input" placeholder="Motivo o Referencia">',
+            title: 'Ajuste de inventario',
+            html: '<div style="text-align:left;font-size:.78rem;color:#5a6b7d;margin-bottom:6px">Para mercadería comprada use <b>Facturación → Compras</b> (con proveedor y factura). El ajuste es solo para diferencias de conteo físico, mermas o inventario inicial.</div>' +
+                  '<select id="swal-tipo" class="swal2-select" style="display:block;width:100%;margin:8px 0">' +
+                  '<option value="AJUSTE_NEGATIVO">Faltante / merma / daño (−)</option>' +
+                  '<option value="AJUSTE_POSITIVO">Sobrante de conteo / inventario inicial (+)</option></select>' +
+                  '<input id="swal-cant" type="number" min="1" step="1" class="swal2-input" placeholder="Cantidad">' +
+                  '<input id="swal-motivo" type="text" class="swal2-input" placeholder="Motivo (obligatorio): ej. conteo físico 27/10, producto vencido">',
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'PROCESAR',
+            confirmButtonText: 'REGISTRAR AJUSTE',
             cancelButtonText: 'CANCELAR',
             preConfirm: () => {
-                const cant = document.getElementById('swal-cant').value;
-                if (!cant || cant <= 0) {
-                    Swal.showValidationMessage('Ingrese una cantidad válida mayor a 0');
-                    return false;
-                }
-                return {
-                    cantidad: cant,
-                    motivo: document.getElementById('swal-motivo').value
-                };
+                const cant = parseInt(document.getElementById('swal-cant').value);
+                const motivo = document.getElementById('swal-motivo').value.trim();
+                if (!cant || cant <= 0) { Swal.showValidationMessage('Ingrese una cantidad entera mayor a 0'); return false; }
+                if (motivo.length < 5) { Swal.showValidationMessage('El motivo es obligatorio (mínimo 5 caracteres)'); return false; }
+                return { cantidad: cant, motivo, tipo: document.getElementById('swal-tipo').value };
             }
         });
 
         if (formValues && formValues.cantidad) {
-            this.ejecutarMovimiento(id, tipo, formValues.cantidad, formValues.motivo);
+            this.ejecutarMovimiento(id, formValues.tipo, formValues.cantidad, formValues.motivo);
+        }
+    },
+
+    /** Kardex: cada entrada/salida con su documento de origen (compra, venta, ajuste). */
+    async verKardex(id) {
+        try {
+            const { data } = await api.get(`/inventario/kardex/${id}`);
+            const p = data.producto;
+            const etiqueta = { COMPRA: 'Compra', ANULA_COMPRA: 'Anulación compra', VENTA: 'Venta POS', ANULA_VENTA: 'Anulación venta', AJUSTE: 'Ajuste' };
+            const filas = (data.movimientos || []).map(m => {
+                const entra = ['INGRESO', 'AJUSTE_POSITIVO'].includes(m.TipoMovimiento);
+                return `<tr>
+                    <td>${String(m.FechaMovimiento).replace('T', ' ').slice(0, 16)}</td>
+                    <td>${etiqueta[m.Origen] || (m.Origen || 'Histórico')}</td>
+                    <td style="text-align:left">${m.Documento || m.Motivo || ''}</td>
+                    <td style="text-align:right;color:${entra ? '#1e8e4e' : '#e74c3c'};font-weight:800">${entra ? '+' : '−'}${m.Cantidad}</td>
+                    <td style="text-align:right">${m.CostoUnitario != null ? '$' + Number(m.CostoUnitario).toFixed(2) : ''}</td>
+                    <td style="text-align:right">${m.StockResultante ?? ''}</td>
+                    <td>${m.Usuario || ''}</td>
+                </tr>`;
+            }).join('');
+            Swal.fire({
+                title: `Kardex · ${p.Nombre}`,
+                width: 960,
+                html: `<div style="display:flex;gap:18px;justify-content:center;font-size:.8rem;margin-bottom:10px">
+                        <span><b>Stock:</b> ${p.StockActual}</span><span><b>Costo promedio:</b> $${Number(p.CostoCompra || 0).toFixed(2)}</span>
+                        <span><b>Valor en inventario:</b> $${(Number(p.StockActual) * Number(p.CostoCompra || 0)).toFixed(2)}</span></div>
+                       <div style="max-height:55vh;overflow:auto">
+                       <table style="width:100%;border-collapse:collapse;font-size:.75rem">
+                         <thead><tr style="background:#1a365d;color:#fff">${['Fecha', 'Origen', 'Documento / motivo', 'Cant.', 'Costo u.', 'Saldo', 'Usuario'].map(h => `<th style="padding:7px 8px;font-size:.62rem;text-transform:uppercase">${h}</th>`).join('')}</tr></thead>
+                         <tbody>${filas || '<tr><td colspan="7" style="padding:16px;color:#a0aab8">Sin movimientos</td></tr>'}</tbody>
+                       </table></div>`,
+                confirmButtonText: 'Cerrar'
+            });
+        } catch (e) {
+            Swal.fire('Error', e.response?.data?.error || 'No se pudo cargar el kardex', 'error');
         }
     },
 
@@ -276,8 +315,8 @@ const InventarioModule = {
                 SedeID: selector ? selector.value : user.SedeID,
                 UsuarioID: user.UsuarioID,
                 Cantidad: parseInt(cantidad),
-                TipoMovimiento: tipo === 'INGRESO' ? 'INGRESO' : 'AJUSTE_NEGATIVO',
-                Motivo: motivo || 'Sin motivo especificado'
+                TipoMovimiento: tipo,
+                Motivo: motivo
             });
             await this.cargarProductos();
             window.Toast.fire({ icon: 'success', title: 'Movimiento registrado correctamente' });

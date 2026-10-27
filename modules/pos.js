@@ -57,9 +57,42 @@ const PosModule = {
         const lbl = document.getElementById('pos-iva-lbl');
         if (lbl) lbl.textContent = `IVA ${this.tarifaIva}%`;
         this.render();
+        this.onComprobante();
+        this.verificarCaja();
         this.cargarRecientes();
         this.cargarDimensiones();
         CobroPasarela.estado().then(s => { this._pasarelaOk = !!s.habilitada; this.onMetodo(); }).catch(() => {});
+    },
+
+    /** Turno de caja del usuario: sin caja abierta no se cobran ventas de contado. */
+    async verificarCaja() {
+        const pill = document.getElementById('pos-caja-pill');
+        const aviso = document.getElementById('pos-caja-aviso');
+        try {
+            const r = await api.get(`/ventas/caja-actual?sedeId=${this.getSede()}`);
+            this.cajaAbierta = !!r.data.abierta;
+            if (pill) {
+                pill.className = 'pos-caja-pill ' + (this.cajaAbierta ? 'on' : 'off');
+                pill.innerHTML = this.cajaAbierta
+                    ? `<i class="fas fa-lock-open"></i> Caja #${r.data.cajaId} abierta`
+                    : '<i class="fas fa-lock"></i> Caja cerrada';
+            }
+            if (aviso) aviso.style.display = this.cajaAbierta ? 'none' : 'flex';
+        } catch (_) { if (pill) pill.textContent = 'Caja: sin datos'; }
+    },
+
+    comprobante() {
+        return document.querySelector('input[name="pos-comp"]:checked')?.value || 'RECIBO';
+    },
+
+    onComprobante() {
+        const fac = this.comprobante() === 'FACTURA';
+        const extra = document.getElementById('pos-fac-extra');
+        if (extra) extra.style.display = fac ? 'block' : 'none';
+        const btn = document.getElementById('pos-reg');
+        if (btn) btn.innerHTML = fac
+            ? '<i class="fas fa-file-invoice"></i> REGISTRAR Y FACTURAR'
+            : '<i class="fas fa-check"></i> REGISTRAR VENTA';
     },
 
     async cargarDimensiones() {
@@ -304,12 +337,31 @@ const PosModule = {
 
         const tipo = document.getElementById('pos-tipo').value;
         const mpId = parseInt(document.getElementById('pos-mp').value);
+        const comprobante = this.comprobante();
+        const docCli = document.getElementById('pos-doc').value.trim();
+        const nomCli = document.getElementById('pos-cli').value.trim();
+
+        if (tipo === 'CONTADO' && this.cajaAbierta === false) {
+            const r = await Swal.fire({ icon: 'warning', title: 'Caja cerrada', text: 'Debe aperturar su turno de caja para cobrar ventas de contado.', showCancelButton: true, confirmButtonText: 'Ir a Caja', cancelButtonText: 'Cancelar' });
+            if (r.isConfirmed) App.renderView('caja', 'viewport');
+            return;
+        }
+        if (comprobante === 'FACTURA') {
+            if ((!docCli || docCli === '9999999999999') && this._totalActual() > 50) {
+                Swal.fire('Datos del cliente', 'El SRI no permite facturar a CONSUMIDOR FINAL por más de $50. Ingrese cédula/RUC y nombre del cliente.', 'warning');
+                return;
+            }
+            if (docCli && docCli !== '9999999999999' && !nomCli) { window.Toast.fire({ icon: 'warning', title: 'Ingrese el nombre del cliente' }); return; }
+        }
         const payload = {
             SedeID: this.getSede(),
             ClienteID: this.cliente?.ClienteID || null,
             ClienteNombre: document.getElementById('pos-cli').value.trim() || 'CONSUMIDOR FINAL',
             ClienteDoc: document.getElementById('pos-doc').value.trim() || null,
             TipoVenta: tipo,
+            TipoComprobante: comprobante,
+            ClienteCorreo: document.getElementById('pos-correo')?.value.trim() || null,
+            ClienteDireccion: document.getElementById('pos-dir')?.value.trim() || null,
             PrecioIncluyeIva: this.precioIncluyeIva,
             MetodoPagoID: mpId,
             FormaPago: document.getElementById('pos-mp').selectedOptions[0].text,
@@ -340,7 +392,15 @@ const PosModule = {
                 } catch (_) { window.Toast.fire({ icon: 'warning', title: 'Venta OK, pero el comprobante no se pudo subir' }); }
             }
 
-            window.Toast.fire({ icon: 'success', title: `Venta #${r.data.numero} registrada · $${this.fmt(r.data.total)}` });
+            if (r.data.factura) {
+                const f = r.data.factura;
+                window.Toast.fire({ icon: 'success', title: `Venta #${r.data.numero} · Factura ${f.numero}`, text: `$${this.fmt(f.total)} — SRI: ${f.estadoSRI}` });
+            } else if (r.data.facturaError) {
+                Swal.fire({ icon: 'warning', title: `Venta #${r.data.numero} registrada, factura NO emitida`,
+                    html: `<div style="text-align:left;font-size:.85rem">${r.data.facturaError}<br><br>La venta, la caja y el inventario ya quedaron registrados. Corrija el problema y use el botón <b>Facturar</b> en "Ventas recientes".</div>` });
+            } else {
+                window.Toast.fire({ icon: 'success', title: `Venta #${r.data.numero} registrada · $${this.fmt(r.data.total)}` });
+            }
 
             // Impresión automática del ticket si la empresa lo tiene configurado
             try {
@@ -356,12 +416,15 @@ const PosModule = {
             this.limpiarCliente();
             document.getElementById('pos-obs').value = '';
             const ref = document.getElementById('pos-ref'); if (ref) ref.value = '';
+            ['pos-correo', 'pos-dir'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
             const vf = document.getElementById('pos-voucher'); if (vf) vf.value = '';
             document.getElementById('pos-qr-ok').style.display = 'none';
             this.render();
             this.cargarRecientes();
         } catch (e) {
-            window.Toast.fire({ icon: 'error', title: e.response?.data?.error || 'Error al registrar' });
+            const msg = e.response?.data?.error || 'Error al registrar';
+            if (/CAJA CERRADA/.test(msg)) this.verificarCaja();
+            Swal.fire({ icon: 'error', title: 'No se registró la venta', text: msg });
         } finally { btn.disabled = false; }
     },
 
@@ -370,7 +433,8 @@ const PosModule = {
             const r = await api.get(`/ventas?sedeId=${this.getSede()}`);
             const v = r.data.ventas || [];
             const tb = document.getElementById('pos-recent');
-            if (!v.length) { tb.innerHTML = '<tr><td colspan="7" class="omni-empty">Sin ventas en el período.</td></tr>'; return; }
+            if (!v.length) { tb.innerHTML = '<tr><td colspan="8" class="omni-empty">Sin ventas en el período.</td></tr>'; return; }
+            this._recientes = v;
             tb.innerHTML = v.slice(0, 25).map(x => `
                 <tr>
                     <td>#${x.Numero}</td>
@@ -378,8 +442,13 @@ const PosModule = {
                     <td>${x.ClienteNombre || ''}</td>
                     <td><span class="bdg ${x.TipoVenta === 'CREDITO' ? 'cr' : 'ok'}">${x.TipoVenta}</span></td>
                     <td class="num">${this.fmt(x.Total)}</td>
+                    <td>${x.FacturaID
+                        ? `<span class="bdg fac" title="${x.FacturaInfo || ''}">${(x.FacturaInfo || 'FACTURA').replace('FAC ', '')}</span>`
+                        : (x.TipoComprobante === 'FACTURA' ? '<span class="bdg cr" title="Se pidió factura pero no se emitió">FACTURA PENDIENTE</span>' : '<span class="bdg rec">RECIBO</span>')}</td>
                     <td><span class="bdg ${x.Estado === 'EMITIDA' ? 'ok' : 'no'}">${x.Estado}</span></td>
                     <td style="white-space:nowrap">
+                        ${x.FacturaID ? `<button class="omni-btn omni-btn-ghost" style="padding:5px 9px" title="Ver RIDE (PDF de la factura)" onclick="PosModule.verRide(${x.FacturaID})"><i class="fas fa-file-pdf"></i></button>` : ''}
+                        ${!x.FacturaID && x.Estado === 'EMITIDA' ? `<button class="omni-btn omni-btn-ghost" style="padding:5px 9px;color:#2f7be6" title="Emitir factura electrónica de esta venta" onclick="PosModule.facturar(${x.VentaID})"><i class="fas fa-file-invoice"></i></button>` : ''}
                         <button class="omni-btn omni-btn-ghost" style="padding:5px 9px" title="Imprimir ticket" onclick="PosModule._imprimirTicket(${x.VentaID})"><i class="fas fa-print"></i></button>
                         ${x.AsientoID ? `<button class="omni-btn omni-btn-ghost" style="padding:5px 9px;color:#2e7d32" title="Ver asiento contable" onclick="PosModule.verAsiento(${x.VentaID})"><i class="fas fa-book"></i></button>` : ''}
                         ${x.Estado === 'EMITIDA' ? `<button class="omni-btn omni-btn-danger" style="padding:5px 9px" onclick="PosModule.anular(${x.VentaID})"><i class="fas fa-ban"></i></button>` : ''}
@@ -389,6 +458,43 @@ const PosModule = {
     },
 
     verAsiento(ventaId) { verAsientosDe(ventaId, 'VENTA', 'COGS'); },
+
+    async verRide(facturaId) {
+        try {
+            const r = await api.get(`/facturacion/documento/ride/${facturaId}`);
+            if (r.data.success) window.open(`${api.defaults.baseURL.replace('/api', '')}${r.data.pdfUrl}`, '_blank');
+        } catch (e) { window.Toast.fire({ icon: 'error', title: 'No se pudo generar el RIDE' }); }
+    },
+
+    /** Emite la factura de una venta ya registrada (recibo que el cliente pide facturar o reintento). */
+    async facturar(ventaId) {
+        const v = (this._recientes || []).find(x => x.VentaID === ventaId) || {};
+        const esCF = !v.ClienteDoc || v.ClienteDoc === '9999999999999';
+        const esc = t => String(t || '').replace(/"/g, '&quot;');
+        const r = await Swal.fire({
+            title: `Facturar venta #${v.Numero || ventaId}`,
+            html: `<div style="text-align:left;font-size:.8rem;color:#5a6b7d">Total: <b>$${this.fmt(v.Total)}</b> — la factura toma los valores exactos de la venta.</div>
+                   <input id="sf-doc" class="swal2-input" placeholder="Cédula / RUC" value="${esCF ? '' : esc(v.ClienteDoc)}">
+                   <input id="sf-nom" class="swal2-input" placeholder="Nombre / Razón social" value="${esCF ? '' : esc(v.ClienteNombre)}">
+                   <input id="sf-mail" class="swal2-input" placeholder="Correo (opcional)">`,
+            showCancelButton: true, confirmButtonText: 'Emitir factura', cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const doc = document.getElementById('sf-doc').value.trim() || '9999999999999';
+                const nom = document.getElementById('sf-nom').value.trim();
+                if (doc !== '9999999999999' && !nom) { Swal.showValidationMessage('Ingrese el nombre del cliente'); return false; }
+                if (doc === '9999999999999' && Number(v.Total) > 50) { Swal.showValidationMessage('Consumidor final solo hasta $50'); return false; }
+                return { Documento: doc, NombreFull: nom || 'CONSUMIDOR FINAL', Correo: document.getElementById('sf-mail').value.trim() };
+            }
+        });
+        if (!r.isConfirmed) return;
+        Swal.fire({ title: 'Emitiendo factura…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+            const res = await api.post(`/ventas/${ventaId}/facturar`, { Cliente: r.value });
+            const f = res.data.factura;
+            Swal.fire({ icon: 'success', title: `Factura ${f.numero}`, text: `$${this.fmt(f.total)} — SRI: ${f.estadoSRI}` });
+            this.cargarRecientes();
+        } catch (e) { Swal.fire('No se emitió la factura', e.response?.data?.error || 'Error', 'error'); }
+    },
 
     async _imprimirTicket(ventaId, silencioso) {
         try {
@@ -408,13 +514,14 @@ const PosModule = {
     },
 
     async anular(id) {
-        const r = await Swal.fire({ title: '¿Anular venta?', input: 'text', inputPlaceholder: 'Motivo', icon: 'warning', showCancelButton: true, confirmButtonText: 'Anular', cancelButtonText: 'No' });
+        const r = await Swal.fire({ title: '¿Anular venta?', text: 'Se devuelve el stock y, si fue de contado, se registra la devolución del dinero en caja.', input: 'text', inputPlaceholder: 'Motivo (obligatorio)', icon: 'warning', showCancelButton: true, confirmButtonText: 'Anular', cancelButtonText: 'No',
+            inputValidator: v => (!v || v.trim().length < 5) ? 'Indique el motivo (mínimo 5 caracteres)' : undefined });
         if (!r.isConfirmed) return;
         try {
             await api.post(`/ventas/${id}/anular`, { motivo: r.value || '' });
             window.Toast.fire({ icon: 'success', title: 'Venta anulada' });
             this.cargarRecientes();
-        } catch (e) { window.Toast.fire({ icon: 'error', title: e.response?.data?.error || 'Error' }); }
+        } catch (e) { Swal.fire('No se anuló', e.response?.data?.error || 'Error', 'error'); }
     }
 };
 
