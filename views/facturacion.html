@@ -95,6 +95,21 @@
     .cp-result div:hover { background:#f0f6ff; }
     .cp-det-tabla { margin-top:10px; }
     .cp-det-tabla .input-neo { margin:0; padding:6px 8px; }
+    /* Compras: el formulario (con el detalle de productos) va en la columna ANCHA */
+    .panel-manual.panel-compras { grid-template-columns: minmax(600px, 1.35fr) 1fr; }
+    @media (max-width: 1280px) { .panel-manual.panel-compras { grid-template-columns: 1fr; } }
+    #viewport .cp-det-tabla { table-layout: fixed; width: 100%; }
+    #viewport .cp-det-tabla th, #viewport .cp-det-tabla td { padding: 7px 5px; vertical-align: middle; }
+    #viewport .cp-det-tabla th:nth-child(2) { width: 96px; }
+    #viewport .cp-det-tabla th:nth-child(3) { width: 112px; }
+    #viewport .cp-det-tabla th:nth-child(4) { width: 76px; }
+    #viewport .cp-det-tabla th:nth-child(5) { width: 90px; }
+    #viewport .cp-det-tabla th:nth-child(6) { width: 46px; }
+    #viewport .cp-det-tabla td:first-child { overflow-wrap: anywhere; }
+    #viewport .cp-det-tabla input[type=number] { width: 100%; min-width: 0; text-align: right; font-weight: 700; font-size: .9rem; -moz-appearance: textfield; }
+    #viewport .cp-det-tabla input[type=number]::-webkit-inner-spin-button,
+    #viewport .cp-det-tabla input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    #viewport .cp-det-tabla select.input-neo { width: 100%; padding: 6px 4px; }
     #viewport .cp-det .cp-vacio { text-align:center; color:#a0aab8; font-size:.75rem; font-weight:600; }
     .cp-nota { font-size:.68rem; color:#718096; margin:8px 0 0; font-weight:600; }
     .cp-traza h5 { margin:16px 0 6px; color:#1a365d; font-size:.78rem; text-transform:uppercase; letter-spacing:.5px; }
@@ -554,7 +569,7 @@
         </div>
 
         <div id="retTabCompras" class="hidden">
-            <div class="panel-manual">
+            <div class="panel-manual panel-compras">
                 <div>
                     <div class="tabla-container-neo">
                         <h3 style="color: var(--hotel-blue); margin-top: 0; margin-bottom: 20px; font-weight: 900; text-transform: uppercase; font-size: 1rem;">
@@ -624,7 +639,7 @@
                             </div>
                             <div id="cpProdResult" class="cp-result" style="display:none;"></div>
                             <table class="tabla-neo cp-det-tabla">
-                                <thead><tr><th>Descripción</th><th style="width:80px">Cant.</th><th style="width:110px">Costo unit. s/IVA</th><th style="width:78px">IVA</th><th style="width:96px" class="num">Subtotal</th><th style="width:40px"></th></tr></thead>
+                                <thead><tr><th>Descripción</th><th>Cant.</th><th>Costo unit. s/IVA</th><th>IVA</th><th class="num">Subtotal</th><th></th></tr></thead>
                                 <tbody id="cpDetBody"><tr><td colspan="6" class="cp-vacio">Sin detalle: ingrese las bases a mano (gasto sin inventario).</td></tr></tbody>
                             </table>
                             <p class="cp-nota"><i class="fas fa-circle-info"></i> Con detalle, las bases se calculan solas, el stock y el costo promedio se actualizan, y cada producto queda en el kardex con esta compra como origen.</p>
