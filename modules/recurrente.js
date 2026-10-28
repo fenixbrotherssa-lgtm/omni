@@ -3,7 +3,7 @@ const api = require('./api');
 const RecurrenteModule = {
 
     getSede() { return localStorage.getItem('currentSedeId') || (App.user && App.user.SedeID) || 1; },
-    esAdmin() { return App.user && parseInt(App.user.RolID) === 1; },
+    esAdmin() { return App.puede('recurrente', 'TOTAL'); },   // catálogo de ítems
     money(n) { return '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
 
     async init() {

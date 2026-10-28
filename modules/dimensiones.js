@@ -6,7 +6,7 @@ const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 const DimensionesModule = {
 
     getSede() { return localStorage.getItem('currentSedeId') || (App.user && App.user.SedeID) || 1; },
-    esAdmin() { return App.user && parseInt(App.user.RolID) === 1; },
+    esAdmin() { return App.puede('dimensiones', 'EDITAR'); },   // cierres de período: el servidor exige TOTAL
 
     async init() {
         window.DimensionesModule = this;

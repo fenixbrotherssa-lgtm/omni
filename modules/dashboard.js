@@ -8,7 +8,16 @@ const DashboardModule = {
         this._iniciarReloj();
         this._setUserName();
         this._adminOnlyCards();
-        this._cargarResumenContable();
+        // Accesos rápidos solo a módulos permitidos; cifras contables solo para quien las puede ver
+        document.querySelectorAll('.qa[onclick]').forEach(a => {
+            const m = (a.getAttribute('onclick') || '').match(/renderView\('([^']+)'/);
+            if (m && App.nivelVista(m[1]) < 1) a.style.display = 'none';
+        });
+        const verCifras = ['estadosfinancieros', 'librodiario', 'kpi'].some(m => App.puede(m, 'VER'));
+        ['wg-ingresos', 'wg-gastos', 'wg-utilidad', 'wg-asientos'].forEach(id => {
+            const e = document.getElementById(id); if (e && !verCifras) e.closest('.rib').style.display = 'none';
+        });
+        if (verCifras) this._cargarResumenContable();
         this._verificarCaja();
         this._cargarAlertas();
     },

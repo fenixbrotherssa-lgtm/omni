@@ -296,10 +296,30 @@ const TEMAS = [
 
   // ── ADMINISTRACIÓN ───────────────────────────────────────
   {
-    id: 'usuarios', grupo: 'Administración', titulo: 'Usuarios', icono: 'fa-users-gear',
-    dek: 'Quién puede entrar al sistema y con qué permisos.',
+    id: 'usuarios', grupo: 'Administración', titulo: 'Usuarios, roles y permisos', icono: 'fa-users-gear',
+    dek: 'Quién entra al sistema, con qué rol, y qué puede hacer cada uno en cada módulo.',
     html: `
-      <p>Crea un usuario por cada persona que vaya a usar OMNI CORE, asignándole una empresa y un rol. El rol <strong>Administrador</strong> puede ver y cambiar entre todas las empresas, gestionar usuarios, cerrar períodos, activar la licencia, etc. Los demás roles quedan limitados a su empresa y a las tareas operativas del día a día.</p>`
+      <p>Crea un usuario por cada persona, asígnale su empresa y un <strong>rol</strong>. El rol define qué módulos ve y qué puede hacer en cada uno.</p>
+      <h4>Roles incluidos</h4>
+      <ul>
+        <li><strong>Administrador</strong> — el dueño: todo, incluidas varias empresas, usuarios, licencia y respaldos.</li>
+        <li><strong>Gerente / Supervisor</strong> — toda la operación y los reportes; autoriza anulaciones.</li>
+        <li><strong>Contador</strong> — contabilidad, SRI, ATS, compras, cartera, activos y nómina.</li>
+        <li><strong>Auditor (solo lectura)</strong> — ve toda la información contable y tributaria, sin poder modificar nada. Ideal para contadores o auditores externos.</li>
+        <li><strong>Cajero / Vendedor</strong> — punto de venta, su turno de caja, clientes y cobros.</li>
+        <li><strong>Bodega / Inventario</strong> — inventario, ajustes, compras de mercadería y levantamiento de activos.</li>
+        <li><strong>Talento humano</strong> — personal, nómina, anticipos y liquidaciones.</li>
+        <li><strong>Operativo</strong> — reporta incidencias de mantenimiento y hace levantamiento de activos.</li>
+      </ul>
+      <h4>Niveles de permiso</h4>
+      <p><strong>Ver</strong> (consulta) · <strong>Crear / editar</strong> (registra y modifica) · <strong>Total</strong> (además anula, elimina, cierra períodos y configura). Si un usuario entra a un módulo donde solo puede ver, aparece el aviso <em>"Modo consulta"</em>.</p>
+      <h4>Ajustar los permisos</h4>
+      <ul>
+        <li><strong>Roles y permisos</strong> (botón arriba): una tabla rol × módulo. Cambia un nivel y afecta a todos los usuarios de ese rol.</li>
+        <li><strong>Permisos de una persona</strong> (botón <i class="fas fa-key"></i> en su fila): para darle o quitarle un módulo solo a ella, sin cambiar su rol. Lo demás sigue "según su rol".</li>
+      </ul>
+      <div class="mn-tip">Anular una venta o reabrir una caja pide la clave de quien autoriza: sirve la del administrador o la de alguien con permiso <strong>Total</strong> en ese módulo (por ejemplo, el Gerente). Nadie puede autorizarse a sí mismo sin ese permiso.</div>
+      <div class="mn-warn">Usuarios, Empresas, Respaldos y Licencia son siempre solo del administrador y no se pueden conceder a otros roles.</div>`
   },
   {
     id: 'sedes', grupo: 'Administración', titulo: 'Empresas', icono: 'fa-building',

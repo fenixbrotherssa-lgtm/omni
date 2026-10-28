@@ -5,7 +5,7 @@ const LibrodiarioModule = {
     _detId: null,
 
     getSede() { return localStorage.getItem('currentSedeId') || (App.user && App.user.SedeID) || 1; },
-    esAdmin() { return App.user && parseInt(App.user.RolID) === 1; },
+    esAdmin() { return App.puede('librodiario', 'EDITAR'); },
     hoy() { return new Date().toISOString().slice(0, 10); },
     primeroMes() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); },
     fmt(n) { return Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
@@ -85,7 +85,7 @@ const LibrodiarioModule = {
                     <tbody>${det.map(l => `<tr><td><span class="c">${l.Codigo}</span> ${l.CuentaNombre}${l.Glosa ? `<br><span class="as-mini">${l.Glosa}</span>` : ''}</td><td class="num">${Number(l.Debe) ? this.fmt(l.Debe) : ''}</td><td class="num">${Number(l.Haber) ? this.fmt(l.Haber) : ''}</td></tr>`).join('')}</tbody>
                     <tfoot><tr><td style="text-align:right;font-weight:900">TOTALES</td><td class="num" style="font-weight:900">${this.fmt(a.TotalDebe)}</td><td class="num" style="font-weight:900">${this.fmt(a.TotalHaber)}</td></tr></tfoot>
                 </table>`;
-            document.getElementById('ld-det-anular').style.display = (this.esAdmin() && a.Estado !== 'ANULADO') ? '' : 'none';
+            document.getElementById('ld-det-anular').style.display = (App.puede('librodiario', 'TOTAL') && a.Estado !== 'ANULADO') ? '' : 'none';
             document.getElementById('ld-det-modal').style.display = 'flex';
         } catch (e) { window.Toast.fire({ icon: 'error', title: e.response?.data?.error || 'Error' }); }
     },

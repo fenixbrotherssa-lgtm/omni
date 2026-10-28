@@ -31,6 +31,7 @@ const App = {
     async entrar({ nuevaSesion = false } = {}) {
         if (nuevaSesion) localStorage.removeItem('currentSedeId');
         await this.fetchSedes();
+        await this.cargarPermisos();
         const actual = localStorage.getItem('currentSedeId');
         const valida = actual && this.sedes.some(s => String(s.SedeID) === String(actual));
         if (!valida) localStorage.removeItem('currentSedeId');
@@ -267,6 +268,38 @@ const App = {
         });
     },
 
+    // ── Permisos por módulo (roles generales) ──────────────────
+    //  Niveles: 0 sin acceso · 1 ver · 2 crear/editar · 3 total.
+    //  El servidor es quien manda (permisosGuard); aquí solo se adapta la
+    //  interfaz: menú, pantallas y botones.
+    permisos: {},
+    _NIVEL: { VER: 1, EDITAR: 2, TOTAL: 3 },
+    // Vistas que no son un módulo con permiso propio
+    _VISTAS_LIBRES: ['dashboard', 'manual'],
+    _VISTAS_ADMIN: ['usuarios', 'sedes', 'respaldos', 'licencia', 'cuentas-saas', 'licencias-local'],
+
+    async cargarPermisos() {
+        if (this.isSuperAdmin()) { this.permisos = {}; return; }
+        try { this.permisos = (await api.get('/permisos/mios')).data.permisos || {}; }
+        catch (_) { this.permisos = {}; }
+    },
+
+    /** ¿El usuario tiene al menos `nivel` ('VER'|'EDITAR'|'TOTAL') en `modulo`? */
+    puede(modulo, nivel = 'VER') {
+        if (this.isSuperAdmin() || (this.user && this.user.EsSoporte)) return true;
+        const n = typeof nivel === 'string' ? this._NIVEL[nivel] : nivel;
+        return (this.permisos[modulo] || 0) >= n;
+    },
+
+    /** Nivel del usuario en una vista del menú (Facturación cuenta también Compras). */
+    nivelVista(vista) {
+        if (this._VISTAS_LIBRES.includes(vista)) return 3;
+        if (this.isSuperAdmin() || (this.user && this.user.EsSoporte)) return 3;
+        if (this._VISTAS_ADMIN.includes(vista)) return 0;
+        if (vista === 'facturacion') return Math.max(this.permisos.facturacion || 0, this.permisos.compras || 0);
+        return this.permisos[vista] || 0;
+    },
+
     isSuperAdmin() {
         return this.user && parseInt(this.user.RolID) === 1;
     },
@@ -364,7 +397,7 @@ const App = {
         ];
         const soporte = !!(this.user && this.user.EsSoporte);
         const navHtml = nav.map(g => {
-            const its = g.items.filter(it => it[3] === 'sop' ? soporte : (!it[3] || admin));
+            const its = g.items.filter(it => it[3] === 'sop' ? soporte : (admin || this.nivelVista(it[0]) >= 1));
             if (!its.length) return '';
             return `<div class="omni-nav-grp"><span>${g.grupo}</span>${its.map(([v, label, ic]) =>
                 `<a class="omni-nav-link" data-view="${v}" onclick="App.renderView('${v}','viewport')"><i class="fas ${ic}"></i>${label}</a>`).join('')}</div>`;
@@ -487,6 +520,17 @@ const App = {
             const html = fs.readFileSync(viewPath, 'utf8').replace(/^\uFEFF/, '');
             const target = document.getElementById(targetId);
 
+            // Permisos: solo aplica dentro de la app (viewport), no al login
+            if (target && targetId === 'viewport' && this.user && this.nivelVista(viewName) < 1) {
+                target.innerHTML = `<div style="padding:60px 36px;text-align:center;font-family:'Inter','Segoe UI',sans-serif;color:#5a6b7d">
+                    <i class="fas fa-lock" style="font-size:2.2rem;color:#a0aab8"></i>
+                    <h2 style="color:#1a365d;margin:14px 0 6px">Sin acceso a este módulo</h2>
+                    <p>Tu rol no tiene permiso para esta sección. Si lo necesitas, pídeselo al administrador (Usuarios → Permisos).</p>
+                    <button onclick="App.renderView('dashboard','viewport')" style="margin-top:10px;border:none;border-radius:10px;padding:10px 16px;background:#2f7be6;color:#fff;font-weight:800;cursor:pointer">Volver al panel</button></div>`;
+                this._currentView = 'dashboard';
+                return;
+            }
+
             if (target) {
                 target.innerHTML = html;
                 this._currentView = viewName;
@@ -500,6 +544,15 @@ const App = {
                 });
                 const crumb = document.getElementById('omni-crumb');
                 if (crumb) crumb.textContent = label || (viewName.charAt(0).toUpperCase() + viewName.slice(1));
+
+                // Solo consulta: aviso discreto arriba (el servidor rechaza cualquier cambio)
+                if (targetId === 'viewport' && this.nivelVista(viewName) === 1) {
+                    const aviso = document.createElement('div');
+                    aviso.className = 'omni-solo-lectura';
+                    aviso.innerHTML = '<i class="fas fa-eye"></i> Modo consulta: tu rol puede ver este módulo, pero no crear, modificar ni anular.';
+                    aviso.style.cssText = 'margin:14px 36px 0;padding:9px 14px;border-radius:10px;background:#fff7ea;border:1px solid #f5d39b;color:#8a5a00;font:700 .78rem Inter,Segoe UI,sans-serif';
+                    target.prepend(aviso);
+                }
 
                 setTimeout(() => this.loadModuleLogic(viewName), 10);
             }

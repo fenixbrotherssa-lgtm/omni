@@ -15,6 +15,10 @@ const InventarioModule = {
     },
 
     async init() {
+        // Modo consulta: sin botones de crear / ajustar / editar / eliminar (el servidor también lo impide)
+        this._puedeEditar = App.puede('inventario', 'EDITAR');
+        this._puedeTotal = App.puede('inventario', 'TOTAL');
+        if (!this._puedeEditar) document.querySelectorAll('.inv-mod .omni-head-r .omni-btn-primary, .inv-mod [onclick*="abrirModalCat"]').forEach(b => b.style.display = 'none');
         this.renderSedeSelector();
         await this.cargarCategorias();
         await this.cargarProductos();
@@ -230,9 +234,9 @@ const InventarioModule = {
                 <td class="num">${serv ? '—' : _money(Math.max(0, stock) * Number(p.CostoCompra || 0))}</td>
                 <td><div class="inv-acc">
                     <button class="inv-ib k" title="Kardex: compras, ventas y ajustes" onclick="InventarioModule.verKardex(${p.ProductoID})"><i class="fas fa-list-check"></i> Kardex</button>
-                    ${serv ? '' : `<button class="inv-ib a" title="Ajuste por conteo físico" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')"><i class="fas fa-scale-balanced"></i></button>`}
-                    <button class="inv-ib e" title="Editar ficha" onclick="InventarioModule.editarProducto(${p.ProductoID})"><i class="fas fa-pen"></i></button>
-                    <button class="inv-ib d" title="Eliminar / desactivar" onclick="InventarioModule.eliminarProducto(${p.ProductoID})"><i class="fas fa-trash"></i></button>
+                    ${serv || !this._puedeEditar ? '' : `<button class="inv-ib a" title="Ajuste por conteo físico" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')"><i class="fas fa-scale-balanced"></i></button>`}
+                    ${this._puedeEditar ? `<button class="inv-ib e" title="Editar ficha" onclick="InventarioModule.editarProducto(${p.ProductoID})"><i class="fas fa-pen"></i></button>` : ''}
+                    ${this._puedeTotal ? `<button class="inv-ib d" title="Eliminar / desactivar" onclick="InventarioModule.eliminarProducto(${p.ProductoID})"><i class="fas fa-trash"></i></button>` : ''}
                 </div></td>
             </tr>`;
         }).join('');

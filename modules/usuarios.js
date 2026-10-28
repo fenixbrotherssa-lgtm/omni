@@ -47,6 +47,9 @@ const UsuariosModule = {
                             <button class="btn-edit" onclick='UsuariosModule.prepararEdicion(${JSON.stringify(u)})' title="Editar">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            ${parseInt(u.RolID) !== 1 ? `<button class="btn-edit" style="background:#eaf2fb;color:#1a5fc0" onclick="UsuariosModule.abrirPermisosUsuario(${u.UsuarioID})" title="Permisos de este usuario (excepciones a su rol)">
+                                <i class="fas fa-key"></i>
+                            </button>` : ''}
                             <button class="${btnClass}" ${btnColor} onclick='UsuariosModule.toggleEstadoUsuario(${JSON.stringify(u)})' title="${u.Estado ? 'Desactivar' : 'Activar'}">
                                 <i class="fas ${btnIcon}"></i>
                             </button>
@@ -250,6 +253,100 @@ const UsuariosModule = {
                 window.Toast.fire({ icon: 'error', title: 'ERROR', text: msg.toUpperCase() });
             }
         }
+    },
+
+    // ── ROLES Y PERMISOS ─────────────────────────────────────
+    //  Niveles: 0 sin acceso · 1 ver · 2 crear/editar · 3 total (anular,
+    //  eliminar, cerrar, configurar). El administrador siempre tiene todo.
+    _esc(v) { return String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); },
+    _colorNivel: ['#a0aab8', '#1a5fc0', '#1e8e4e', '#b9420b'],
+
+    _selNivel(id, valor, niveles, conHereda, heredado) {
+        const ops = (conHereda ? [`<option value="" ${valor == null ? 'selected' : ''}>Según su rol (${niveles[heredado || 0]})</option>`] : [])
+            .concat(niveles.map((n, i) => `<option value="${i}" ${valor === i ? 'selected' : ''}>${n}</option>`)).join('');
+        const color = valor == null ? '#718096' : this._colorNivel[valor];
+        return `<select data-k="${id}" class="perm-sel" style="width:100%;padding:5px 6px;border:1px solid #d5dce5;border-radius:7px;font-size:.74rem;font-weight:700;color:${color};background:#fff"
+                    onchange="this.style.color = this.value === '' ? '#718096' : UsuariosModule._colorNivel[this.value]">${ops}</select>`;
+    },
+
+    async abrirRolesPermisos() {
+        let data;
+        try { data = (await api.get('/permisos/matriz')).data; }
+        catch (e) { return Swal.fire('Sin acceso', e.response?.data?.error || e.message, 'error'); }
+        const { modulos, niveles, roles } = data;
+        const grupos = [...new Set(modulos.map(m => m.grupo))];
+        const cab = roles.map(r => `<th style="padding:7px 6px;font-size:.62rem;min-width:110px" title="${this._esc(r.Descripcion)}">${this._esc(r.NombreRol)}</th>`).join('');
+        const filas = grupos.map(g => `
+            <tr><td colspan="${roles.length + 1}" style="background:#eef1f5;font-size:.62rem;font-weight:900;letter-spacing:1px;color:#5a6b7d;padding:6px 8px">${this._esc(g.toUpperCase())}</td></tr>
+            ${modulos.filter(m => m.grupo === g).map(m => `
+                <tr><td style="padding:5px 8px;font-size:.76rem;font-weight:700;color:#1a365d;white-space:nowrap">${this._esc(m.nombre)}</td>
+                ${roles.map(r => `<td style="padding:3px 4px">${this._selNivel(`${r.RolID}|${m.clave}`, r.permisos[m.clave] ?? 0, niveles, false)}</td>`).join('')}</tr>`).join('')}`).join('');
+        const r = await Swal.fire({
+            title: 'Roles y permisos', width: Math.min(1250, 260 + roles.length * 125), showCancelButton: true,
+            confirmButtonText: 'Guardar cambios', cancelButtonText: 'Cerrar', confirmButtonColor: '#1a365d',
+            html: `<div style="text-align:left;font-size:.78rem;color:#5a6b7d;margin-bottom:8px">
+                    <b>Ver</b>: consulta · <b>Crear / editar</b>: registra y modifica · <b>Total</b>: además anula, elimina, cierra períodos y configura.
+                    El <b>Administrador</b> siempre tiene todo. Usuarios, Empresas, Respaldos y Licencia son solo del administrador.
+                    Para darle o quitarle un módulo a una sola persona usa el botón <i class="fas fa-key"></i> en su fila.</div>
+                <div style="max-height:62vh;overflow:auto;border:1px solid #e3e8ef;border-radius:10px">
+                <table style="width:100%;border-collapse:collapse">
+                    <thead style="position:sticky;top:0;z-index:1;background:#1a365d;color:#fff"><tr><th style="padding:7px 8px;text-align:left;font-size:.62rem">MÓDULO</th>${cab}</tr></thead>
+                    <tbody>${filas}</tbody></table></div>`,
+            preConfirm: () => {
+                const cambios = {};
+                document.querySelectorAll('.perm-sel').forEach(s => {
+                    const [rolId, mod] = s.dataset.k.split('|');
+                    const rol = roles.find(x => String(x.RolID) === rolId);
+                    const v = parseInt(s.value);
+                    if ((rol.permisos[mod] ?? 0) !== v) { (cambios[rolId] = cambios[rolId] || {})[mod] = v; }
+                });
+                return cambios;
+            }
+        });
+        if (!r.isConfirmed) return;
+        const cambios = r.value || {};
+        if (!Object.keys(cambios).length) return window.Toast.fire({ icon: 'info', title: 'Sin cambios' });
+        try {
+            for (const [rolId, permisos] of Object.entries(cambios)) await api.put(`/permisos/rol/${rolId}`, { permisos });
+            window.Toast.fire({ icon: 'success', title: `Permisos actualizados (${Object.keys(cambios).length} rol/es)` });
+        } catch (e) { Swal.fire('No se guardó', e.response?.data?.error || e.message, 'error'); }
+    },
+
+    async abrirPermisosUsuario(usuarioId) {
+        let data;
+        try { data = (await api.get(`/permisos/usuario/${usuarioId}`)).data; }
+        catch (e) { return Swal.fire('Permisos', e.response?.data?.error || e.message, 'info'); }
+        const { usuario, modulos, niveles, delRol, excepciones } = data;
+        const grupos = [...new Set(modulos.map(m => m.grupo))];
+        const filas = grupos.map(g => `
+            <tr><td colspan="2" style="background:#eef1f5;font-size:.62rem;font-weight:900;letter-spacing:1px;color:#5a6b7d;padding:6px 8px">${this._esc(g.toUpperCase())}</td></tr>
+            ${modulos.filter(m => m.grupo === g).map(m => `
+                <tr><td style="padding:5px 8px;font-size:.78rem;font-weight:700;color:#1a365d">${this._esc(m.nombre)}</td>
+                <td style="padding:3px 6px;width:230px">${this._selNivel(m.clave, excepciones[m.clave] ?? null, niveles, true, delRol[m.clave] || 0)}</td></tr>`).join('')}`).join('');
+        const r = await Swal.fire({
+            title: `Permisos de ${this._esc(usuario.NombreFull)}`, width: 640, showCancelButton: true,
+            confirmButtonText: 'Guardar', cancelButtonText: 'Cerrar', confirmButtonColor: '#1a365d',
+            html: `<div style="text-align:left;font-size:.78rem;color:#5a6b7d;margin-bottom:8px">
+                    Rol: <b>${this._esc(usuario.NombreRol)}</b>. Por defecto cada módulo sigue a su rol; elige otro nivel solo
+                    donde esta persona necesite más (o menos) acceso que su rol.</div>
+                <div style="max-height:60vh;overflow:auto;border:1px solid #e3e8ef;border-radius:10px">
+                <table style="width:100%;border-collapse:collapse"><tbody>${filas}</tbody></table></div>`,
+            preConfirm: () => {
+                const cambios = {};
+                document.querySelectorAll('.perm-sel').forEach(s => {
+                    const actual = excepciones[s.dataset.k] ?? null;
+                    const nuevo = s.value === '' ? null : parseInt(s.value);
+                    if (actual !== nuevo) cambios[s.dataset.k] = nuevo;
+                });
+                return cambios;
+            }
+        });
+        if (!r.isConfirmed) return;
+        if (!Object.keys(r.value || {}).length) return window.Toast.fire({ icon: 'info', title: 'Sin cambios' });
+        try {
+            await api.put(`/permisos/usuario/${usuarioId}`, { permisos: r.value });
+            window.Toast.fire({ icon: 'success', title: 'Permisos del usuario actualizados' });
+        } catch (e) { Swal.fire('No se guardó', e.response?.data?.error || e.message, 'error'); }
     }
 };
 

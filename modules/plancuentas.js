@@ -6,7 +6,7 @@ const PlancuentasModule = {
     getSede() {
         return localStorage.getItem('currentSedeId') || (App.user && App.user.SedeID) || 1;
     },
-    esAdmin() { return App.user && parseInt(App.user.RolID) === 1; },
+    esAdmin() { return App.puede('plancuentas', 'EDITAR'); },
 
     async init() {
         window.PlancuentasModule = this;

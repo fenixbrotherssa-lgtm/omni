@@ -15,7 +15,7 @@ const MantenimientoModule = {
     async init() {
         window.MantenimientoModule = this;
         const user = JSON.parse(localStorage.getItem('user'));
-        this._isAdmin = user && parseInt(user.RolID) === 1;
+        this._isAdmin = App.puede('mantenimiento', 'TOTAL');   // gestionar órdenes
         this._sedeId  = localStorage.getItem('currentSedeId') || user?.SedeID || 1;
         await this.cargarAreas();
         await Promise.all([this.cargarOrdenes(), this.cargarStats()]);

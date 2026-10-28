@@ -182,7 +182,8 @@ const ActivosModule = {
         }
 
         const baseUrl = api.defaults.baseURL.replace('/api', '');
-        const esAdmin = App.isSuperAdmin();
+        const esAdmin = App.puede('activos', 'EDITAR');     // editar ficha
+        const puedeTotal = App.puede('activos', 'TOTAL');   // dar de baja / reactivar
         grid.innerHTML = activosFiltrados.map(a => {
             const necesitaReingreso = (a.Estado === 'EN TRÁNSITO' || a.Estado === 'EN MANTENIMIENTO');
             const esBaja = ['BAJA', 'VENDIDO'].includes(a.Estado);
@@ -211,7 +212,7 @@ const ActivosModule = {
                                 <i class="fas fa-book"></i> VER ASIENTO DE BAJA
                             </button>
                         ` : ''}
-                        ${esBaja && esAdmin ? `
+                        ${esBaja && puedeTotal ? `
                             <button class="btn-neo no-print" style="justify-content:center; background:#2e7d32; color:#fff;" onclick="ActivosModule.reactivar(${a.ActivoID})">
                                 <i class="fas fa-rotate-left"></i> REACTIVAR (REVIERTE LA BAJA)
                             </button>
@@ -232,9 +233,9 @@ const ActivosModule = {
                             ${esAdmin ? `<button class="btn-neo no-print" style="justify-content:center; background:#34495e; color:#fff;" onclick="ActivosModule.abrirEdicion(${a.ActivoID})">
                                 <i class="fas fa-pen"></i> EDITAR FICHA
                             </button>` : ''}
-                            <button class="btn-neo no-print" style="justify-content:center; background:#fdeceb; color:#c0392b;" onclick="ActivosModule.abrirBaja(${a.ActivoID})">
+                            ${puedeTotal ? `<button class="btn-neo no-print" style="justify-content:center; background:#fdeceb; color:#c0392b;" onclick="ActivosModule.abrirBaja(${a.ActivoID})">
                                 <i class="fas fa-gavel"></i> DAR DE BAJA / VENDER
-                            </button>
+                            </button>` : ''}
                         `}
                     </div>
                 </div>

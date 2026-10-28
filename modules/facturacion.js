@@ -13,8 +13,10 @@ const FacturacionModule = {
         console.log("📡 Módulo de Facturación Electrónica SRI Iniciado...");
         
         this.renderSedeSelector();
-        await this.cargarCertificadoSede();
-        await this.cargarHistorial();
+        if (App.puede('facturacion', 'VER')) {           // solo-Compras no carga facturas ni firma
+            await this.cargarCertificadoSede();
+            await this.cargarHistorial();
+        }
         
         this.setupEventListeners();
         this.verificarPermisosConfig();
@@ -22,11 +24,24 @@ const FacturacionModule = {
         window.NotasCreditoModule = NotasCreditoModule;
         window.NotasDebitoModule = NotasDebitoModule;
         window.RetencionesModule = RetencionesModule;
+        if (this.aplicarPermisosPestanas()) this.switchTab('retenciones');
+    },
+
+    /** Pestañas según permisos: Facturación (emitir, notas, firma) y Compras
+     *  (retenciones, compras, liquidaciones, proveedores). Devuelve true si el
+     *  usuario solo tiene Compras (entra directo a esa pestaña). */
+    aplicarPermisosPestanas() {
+        const fac = App.puede('facturacion', 'VER');
+        const com = App.puede('compras', 'VER');
+        const ocultar = (id, si) => { const e = document.getElementById(id); if (e) e.style.display = si ? 'none' : ''; };
+        ['btnTabHistorial', 'btnTabManual', 'btnTabNotaCredito', 'btnTabNotaDebito'].forEach(id => ocultar(id, !fac));
+        ocultar('btnTabConfig', !App.puede('facturacion', 'TOTAL'));
+        ocultar('btnTabRetenciones', !com);
+        return !fac && com;
     },
 
     verificarPermisosConfig() {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const isAdmin = user && parseInt(user.RolID || user.rol) === 1;
+        const isAdmin = App.puede('facturacion', 'TOTAL');
         
         const btnC = document.getElementById('btnTabConfig');
         const formCert = document.getElementById('formCertificadoSRI');
@@ -70,8 +85,7 @@ const FacturacionModule = {
     },
 
     switchTab(tab) {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const isAdmin = user && parseInt(user.RolID || user.rol) === 1;
+        const isAdmin = App.puede('facturacion', 'TOTAL');
         if (tab === 'config' && !isAdmin) {
             Swal.fire('Acceso Restringido', 'No tiene permisos para ver esta sección.', 'error');
             return;
