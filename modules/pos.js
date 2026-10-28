@@ -181,7 +181,7 @@ const PosModule = {
         set('pos-iva', iva);
         set('pos-total', total);
         const b0row = document.getElementById('pos-base0-row');
-        if (b0row) b0row.style.display = base0 > 0 ? 'flex' : 'none';
+        if (b0row) b0row.style.display = 'flex';
         document.getElementById('pos-reg').disabled = this.items.length === 0;
     },
 
@@ -341,8 +341,9 @@ const PosModule = {
         const docCli = document.getElementById('pos-doc').value.trim();
         const nomCli = document.getElementById('pos-cli').value.trim();
 
-        if (tipo === 'CONTADO' && this.cajaAbierta === false) {
-            const r = await Swal.fire({ icon: 'warning', title: 'Caja cerrada', text: 'Debe aperturar su turno de caja para cobrar ventas de contado.', showCancelButton: true, confirmButtonText: 'Ir a Caja', cancelButtonText: 'Cancelar' });
+        if (this.cajaAbierta !== true) await this.verificarCaja();
+        if (this.cajaAbierta !== true) {
+            const r = await Swal.fire({ icon: 'warning', title: 'Caja cerrada', text: 'Debe aperturar su turno de caja antes de vender.', showCancelButton: true, confirmButtonText: 'Ir a Caja', cancelButtonText: 'Cancelar' });
             if (r.isConfirmed) App.renderView('caja', 'viewport');
             return;
         }
@@ -514,13 +515,28 @@ const PosModule = {
     },
 
     async anular(id) {
-        const r = await Swal.fire({ title: '¿Anular venta?', text: 'Se devuelve el stock y, si fue de contado, se registra la devolución del dinero en caja.', input: 'text', inputPlaceholder: 'Motivo (obligatorio)', icon: 'warning', showCancelButton: true, confirmButtonText: 'Anular', cancelButtonText: 'No',
-            inputValidator: v => (!v || v.trim().length < 5) ? 'Indique el motivo (mínimo 5 caracteres)' : undefined });
-        if (!r.isConfirmed) return;
+        const r = await Swal.fire({
+            title: '¿Anular venta?', icon: 'warning',
+            html: `<p style="font-size:.85rem">Se devuelve el stock y, si fue de contado, se registra la devolución del dinero en caja.<br><b>Requiere autorización de un administrador.</b></p>
+                   <input id="anu-motivo" class="swal2-input" placeholder="Motivo (obligatorio)">
+                   <input id="anu-user" class="swal2-input" placeholder="Usuario administrador" autocomplete="off">
+                   <input id="anu-pass" type="password" class="swal2-input" placeholder="Contraseña administrador" autocomplete="new-password">`,
+            showCancelButton: true, confirmButtonText: 'Anular', cancelButtonText: 'No', focusConfirm: false,
+            preConfirm: () => {
+                const motivo = document.getElementById('anu-motivo').value.trim();
+                const usuarioAdmin = document.getElementById('anu-user').value.trim();
+                const passwordAdmin = document.getElementById('anu-pass').value;
+                if (motivo.length < 5) return Swal.showValidationMessage('Indique el motivo (mínimo 5 caracteres)');
+                if (!usuarioAdmin || !passwordAdmin) return Swal.showValidationMessage('Ingrese usuario y contraseña de administrador');
+                return { motivo, usuarioAdmin, passwordAdmin };
+            }
+        });
+        if (!r.isConfirmed || !r.value) return;
         try {
-            await api.post(`/ventas/${id}/anular`, { motivo: r.value || '' });
+            await api.post(`/ventas/${id}/anular`, r.value);
             window.Toast.fire({ icon: 'success', title: 'Venta anulada' });
             this.cargarRecientes();
+            this.verificarCaja();
         } catch (e) { Swal.fire('No se anuló', e.response?.data?.error || 'Error', 'error'); }
     }
 };

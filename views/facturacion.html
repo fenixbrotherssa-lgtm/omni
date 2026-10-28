@@ -117,7 +117,10 @@
                 <div id="sedeSelectorFacturacion" style="margin-top: 10px;"></div>
             </div>
         </div>
-        <div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="btn-neo" onclick="FacturacionModule.abrirPortalSRI()" title="Abre SRI en línea en el navegador (consultar, anular comprobantes, declaraciones)">
+                <i class="fas fa-landmark"></i> PORTAL SRI
+            </button>
             <button class="btn-neo" onclick="FacturacionModule.sincronizarEmisiones()">
                 <i class="fas fa-sync-alt"></i> SINCRONIZAR EMISIONES
             </button>
@@ -207,6 +210,13 @@
                             <label class="label-hint">P. Unitario ($)</label>
                             <input type="number" id="manDetPrecio" class="input-neo" placeholder="0.00" step="0.01">
                         </div>
+                        <div style="flex: 1;">
+                            <label class="label-hint">Tarifa IVA</label>
+                            <select id="manDetIva" class="input-neo">
+                                <option value="1">Grava IVA (precio con IVA)</option>
+                                <option value="0">IVA 0% / exento</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <button type="button" class="btn-neo btn-save" style="width: 100%; margin-top: 10px;" onclick="FacturacionModule.agregarDetalleManual()">
@@ -237,8 +247,8 @@
 
                     <div class="totales-box">
                         <h4>Subtotal 0%: $<span id="manSubCero">0.00</span></h4>
-                        <h4>Subtotal IVA: $<span id="manSubIva">0.00</span></h4>
-                        <h4>IVA: $<span id="manTotalIva">0.00</span></h4>
+                        <h4>Subtotal <span id="manPctLbl">15</span>%: $<span id="manSubIva">0.00</span></h4>
+                        <h4>IVA <span id="manPctLbl2">15</span>%: $<span id="manTotalIva">0.00</span></h4>
                         <hr style="border-color: rgba(255,255,255,0.2); margin: 10px 0;">
                         <h2>TOTAL: $<span id="manTotalGeneral">0.00</span></h2>
                     </div>

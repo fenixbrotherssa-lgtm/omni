@@ -37,7 +37,17 @@ const LicenciaModule = {
     async estadoActualizacionApp() {
         const el = document.getElementById('upd-app-body');
         if (!ipc) { if (el) el.textContent = 'Solo disponible en la app de escritorio.'; return; }
-        if (el) el.textContent = 'Automática. Usa el botón para forzar una comprobación ahora.';
+        let lista = null;
+        try { lista = await ipc.invoke('omni:update-pending'); } catch (_) {}
+        if (!el) return;
+        if (lista) this._mostrarUpdateLista(el, lista);
+        else el.textContent = 'Automática y silenciosa: se descarga sola y se instala al cerrar la app. Usa el botón para comprobar ahora.';
+    },
+
+    _mostrarUpdateLista(el, version) {
+        el.innerHTML = `La versión <b>${version}</b> ya está descargada y se instalará sola al cerrar la app.
+            <button class="omni-btn omni-btn-primary" style="margin-left:10px;padding:5px 12px" id="upd-app-go">Instalar ahora</button>`;
+        document.getElementById('upd-app-go').onclick = () => ipc.send('omni:update-install');
     },
 
     async buscarActualizacionApp() {
@@ -47,7 +57,11 @@ const LicenciaModule = {
         try {
             const r = await ipc.invoke('omni:update-check');
             if (!r.ok) { if (el) el.textContent = 'No se pudo comprobar: ' + (r.error || ''); return; }
-            if (el) el.textContent = r.version ? `Hay una versión disponible: ${r.version}. Se está descargando…` : 'La app está al día.';
+            let lista = null;
+            try { lista = await ipc.invoke('omni:update-pending'); } catch (_) {}
+            if (!el) return;
+            if (lista) this._mostrarUpdateLista(el, lista);
+            else el.textContent = r.version ? `Hay una versión disponible: ${r.version}. Se descarga en segundo plano y se instalará al cerrar la app.` : 'La app está al día.';
         } catch (e) { if (el) el.textContent = 'No se pudo comprobar actualizaciones de la app.'; }
     },
 

@@ -117,7 +117,8 @@ function iniciarAutoUpdate(win) {
     autoUpdater.on('update-available', (info) => avisar('disponible', { version: info.version }));
     autoUpdater.on('update-not-available', () => avisar('al-dia'));
     autoUpdater.on('download-progress', (p) => avisar('descargando', { porcentaje: Math.round(p.percent) }));
-    autoUpdater.on('update-downloaded', (info) => avisar('listo', { version: info.version }));
+    let versionLista = null;
+    autoUpdater.on('update-downloaded', (info) => { versionLista = info.version; avisar('listo', { version: info.version }); });
     autoUpdater.on('error', (err) => avisar('error', { mensaje: String(err && err.message || err) }));
 
     // Aplica la actualización. Con NSIS por-usuario (perMachine:false) el
@@ -149,8 +150,14 @@ function iniciarAutoUpdate(win) {
     });
     ipcMain.on('omni:update-install', () => instalarActualizacion());
 
-    // primer chequeo a los ~4s de abrir (no bloquea el arranque)
-    setTimeout(() => { autoUpdater.checkForUpdatesAndNotify().catch(() => {}); }, 4000);
+    // Actualización SILENCIOSA: chequeo a los ~4s de abrir y luego cada 6 h,
+    // descarga en segundo plano y se instala sola al cerrar la app
+    // (autoInstallOnAppQuit). Sin notificación nativa de Windows ni avisos:
+    // checkForUpdatesAndNotify() mostraba un globo del sistema en cada versión.
+    const chequear = () => autoUpdater.checkForUpdates().catch(() => {});
+    setTimeout(chequear, 4000);
+    setInterval(chequear, 6 * 60 * 60 * 1000);
+    ipcMain.handle('omni:update-pending', () => versionLista);
 }
 
 function createWindow() {

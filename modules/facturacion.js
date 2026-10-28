@@ -183,6 +183,11 @@ const FacturacionModule = {
         }
     },
 
+    abrirPortalSRI() {
+        const u = 'https://srienlinea.sri.gob.ec/sri-en-linea/inicio/NAT';
+        try { require('electron').shell.openExternal(u); } catch (_) { window.open(u, '_blank'); }
+    },
+
     agregarDetalleManual() {
         const desc = document.getElementById('manDetDesc').value.trim();
         const cant = parseFloat(document.getElementById('manDetCant').value);
@@ -196,7 +201,8 @@ const FacturacionModule = {
             Codigo: 'MAN001',
             Descripcion: desc,
             Cantidad: cant,
-            PrecioUnitario: precio
+            PrecioUnitario: precio,
+            AplicaIva: (document.getElementById('manDetIva')?.value ?? '1') !== '0'
         });
 
         document.getElementById('manDetDesc').value = '';
@@ -216,26 +222,28 @@ const FacturacionModule = {
         const tbody = document.getElementById('tablaDetallesManual');
         if (!tbody) return;
 
+        const PCT_IVA = parseFloat(localStorage.getItem('sede_iva_pct') || '15');
+        const FACTOR  = 1 + PCT_IVA / 100;
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        set('manPctLbl', PCT_IVA); set('manPctLbl2', PCT_IVA);
+
         if (this.detallesManuales.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; opacity: 0.5;">No hay ítems agregados</td></tr>';
-            document.getElementById('manSubIva').textContent = '0.00';
-            document.getElementById('manTotalIva').textContent = '0.00';
-            document.getElementById('manTotalGeneral').textContent = '0.00';
+            ['manSubCero', 'manSubIva', 'manTotalIva', 'manTotalGeneral'].forEach(id => set(id, '0.00'));
             return;
         }
 
-        const PCT_IVA = parseFloat(localStorage.getItem('sede_iva_pct') || '15');
-        const FACTOR  = 1 + PCT_IVA / 100;   
-
-        let totalConIva  = 0;   
+        // Precios con IVA incluido: las líneas gravadas se desglosan, las 0% van directo.
+        let gravadoConIva = 0, base0 = 0;
         let html = '';
 
         this.detallesManuales.forEach((item, idx) => {
-            const lineaConIva = item.Cantidad * item.PrecioUnitario;  
-            totalConIva += lineaConIva;
+            const lineaConIva = item.Cantidad * item.PrecioUnitario;
+            const grava = item.AplicaIva !== false;
+            if (grava) gravadoConIva += lineaConIva; else base0 += lineaConIva;
             html += `
                 <tr>
-                    <td>${item.Descripcion}</td>
+                    <td>${item.Descripcion} <span style="font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:8px;${grava ? 'background:#e8eefc;color:#1a365d' : 'background:#eafaf0;color:#1e8e4e'}">${grava ? 'IVA ' + PCT_IVA + '%' : 'IVA 0%'}</span></td>
                     <td>${item.Cantidad}</td>
                     <td>$${item.PrecioUnitario.toFixed(2)}</td>
                     <td>$${lineaConIva.toFixed(2)}</td>
@@ -250,12 +258,13 @@ const FacturacionModule = {
 
         tbody.innerHTML = html;
 
-        const baseImponible = totalConIva / FACTOR;
-        const iva           = totalConIva - baseImponible;
+        const baseImponible = gravadoConIva / FACTOR;
+        const iva           = gravadoConIva - baseImponible;
 
-        document.getElementById('manSubIva').textContent = baseImponible.toFixed(2);
-        document.getElementById('manTotalIva').textContent = iva.toFixed(2);
-        document.getElementById('manTotalGeneral').textContent = totalConIva.toFixed(2);
+        set('manSubCero', base0.toFixed(2));
+        set('manSubIva', baseImponible.toFixed(2));
+        set('manTotalIva', iva.toFixed(2));
+        set('manTotalGeneral', (gravadoConIva + base0).toFixed(2));
     },
 
     // ==========================================

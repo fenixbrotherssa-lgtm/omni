@@ -27,22 +27,11 @@ const App = {
     // ── Auto-actualización del cliente (electron-updater vía main.js) ──
     escucharActualizaciones() {
         if (!ipcRenderer) return;
+        // Silencioso: la versión nueva se descarga sola y se instala al cerrar
+        // la app. Sin banners. En Licencia se puede instalar al momento.
         ipcRenderer.on('omni:update-status', (_e, d) => {
-            const b = this._bannerUpdate();
-            if (d.estado === 'descargando') {
-                b.style.display = 'flex';
-                b.innerHTML = `<span>Descargando actualización… ${d.porcentaje || 0}%</span>`;
-            } else if (d.estado === 'listo') {
-                b.style.display = 'flex';
-                b.innerHTML = `<span>Versión ${d.version} lista para instalar.</span>
-                    <button id="omni-upd-go" style="margin-left:14px;background:#fff;color:#1a365d;border:none;border-radius:7px;padding:5px 12px;font-weight:800;cursor:pointer">Reiniciar e instalar</button>
-                    <button id="omni-upd-later" style="margin-left:8px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:7px;padding:5px 12px;font-weight:700;cursor:pointer">Después</button>`;
-                document.getElementById('omni-upd-go').onclick = () => ipcRenderer.send('omni:update-install');
-                document.getElementById('omni-upd-later').onclick = () => { b.style.display = 'none'; };
-            } else if (d.estado === 'error') {
-                console.warn('Auto-update:', d.mensaje);
-            }
-            // 'buscando' / 'al-dia' / 'disponible' -> silencioso (no molesta al usuario)
+            if (d.estado === 'listo') this._updateLista = d.version;
+            else if (d.estado === 'error') console.warn('Auto-update:', d.mensaje);
         });
     },
 

@@ -269,6 +269,44 @@ const InventarioModule = {
         }
     },
 
+    /** Verificación de integridad compras ↔ inventario ↔ caja (solo lectura). */
+    async verificarIntegridad() {
+        const selector = document.getElementById('globalSedeSelector');
+        const sedeId = selector ? selector.value : App.user.SedeID;
+        Swal.fire({ title: 'Verificando integridad...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+        try {
+            const { data } = await api.get(`/inventario/integridad?sedeId=${sedeId}`);
+            const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            const fmt = v => v instanceof Date || /^\d{4}-\d{2}-\d{2}T/.test(v) ? String(v).slice(0, 10) : v;
+            const color = { error: '#c0392b', aviso: '#b9770e', info: '#2c5282' };
+            const bloques = data.checks.map(c => {
+                const okFila = !c.total;
+                const icono = okFila ? '<i class="fas fa-check-circle" style="color:#27ae60"></i>'
+                    : `<i class="fas ${c.nivel === 'error' ? 'fa-times-circle' : 'fa-exclamation-triangle'}" style="color:${color[c.nivel]}"></i>`;
+                let tabla = '';
+                if (c.total) {
+                    const cols = Object.keys(c.filas[0]);
+                    tabla = `<div style="max-height:160px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:.72rem;border-collapse:collapse">
+                        <tr>${cols.map(k => `<th style="text-align:left;padding:3px 6px;border-bottom:1px solid #ddd">${esc(k)}</th>`).join('')}</tr>
+                        ${c.filas.map(f => `<tr>${cols.map(k => `<td style="padding:3px 6px;border-bottom:1px solid #f0f0f0">${esc(fmt(f[k]))}</td>`).join('')}</tr>`).join('')}
+                    </table>${c.total > c.filas.length ? `<div style="font-size:.7rem;color:#718096">… y ${c.total - c.filas.length} más</div>` : ''}</div>`;
+                }
+                return `<div style="text-align:left;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px">
+                    <div style="font-weight:800;font-size:.85rem">${icono} ${esc(c.titulo)} <span style="float:right">${okFila ? 'OK' : c.total}</span></div>
+                    <div style="font-size:.72rem;color:#718096">${esc(c.detalle)}</div>${tabla}</div>`;
+            }).join('');
+            const r = data.resumen || {};
+            Swal.fire({
+                width: 820, icon: data.ok ? 'success' : 'warning',
+                title: data.ok ? 'Integridad correcta' : 'Se encontraron inconsistencias',
+                html: `<div style="font-size:.78rem;color:#4a5568;margin-bottom:10px">${r.Compras ?? 0} compras · ${r.LineasConProducto ?? 0} líneas con producto · ${r.Productos ?? 0} productos · ${r.Ventas ?? 0} ventas vigentes</div>${bloques}`,
+                confirmButtonColor: '#1a365d'
+            });
+        } catch (e) {
+            Swal.fire('Error', e.response?.data?.error || e.message, 'error');
+        }
+    },
+
     /** Kardex: cada entrada/salida con su documento de origen (compra, venta, ajuste). */
     async verKardex(id) {
         try {

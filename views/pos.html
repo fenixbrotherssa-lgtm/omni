@@ -13,7 +13,7 @@
     </div>
     <div id="pos-caja-aviso" class="pos-caja-aviso" style="display:none;">
         <i class="fas fa-cash-register"></i>
-        <span>Tu turno de caja está <b>cerrado</b>. Las ventas de contado no se registran hasta aperturar caja (las ventas a crédito sí).</span>
+        <span>Tu turno de caja está <b>cerrado</b>. No se puede vender (contado ni crédito) hasta aperturar caja.</span>
         <button class="omni-btn omni-btn-primary" onclick="App.renderView('caja','viewport')"><i class="fas fa-lock-open"></i> Abrir caja</button>
     </div>
 
@@ -98,7 +98,7 @@
 
             <div class="pos-tot">
                 <div><span>Subtotal gravado</span><b id="pos-base15">0.00</b></div>
-                <div id="pos-base0-row" style="display:none;"><span>Subtotal 0%</span><b id="pos-base0">0.00</b></div>
+                <div id="pos-base0-row"><span>Subtotal 0%</span><b id="pos-base0">0.00</b></div>
                 <div><span id="pos-iva-lbl">IVA</span><b id="pos-iva">0.00</b></div>
                 <div class="pos-total"><span>TOTAL A PAGAR</span><b id="pos-total">0.00</b></div>
             </div>

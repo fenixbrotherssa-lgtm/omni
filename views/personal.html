@@ -79,6 +79,9 @@
         <div class="nomina-header">
             <h3><i class="fas fa-file-invoice-dollar" style="color:var(--gold)"></i> Liquidación de Nómina</h3>
             <div style="display:flex;gap:12px;align-items:center;">
+                <button class="btn-neo" onclick="PersonalModule.abrirTiposAfiliacion()" title="Tipos de afiliación IESS: general, gerente / representante legal, ...">
+                    <i class="fas fa-id-badge"></i> Afiliación IESS
+                </button>
                 <button class="btn-neo" onclick="PersonalModule.abrirParametrosLaborales()" title="SBU y porcentajes IESS por año">
                     <i class="fas fa-sliders-h"></i> Parámetros IESS/SBU
                 </button>
@@ -136,8 +139,13 @@
         <div style="background:#f1f3f5; border-radius:12px; padding:14px; margin:14px 0;">
             <label style="display:flex; align-items:center; gap:8px; font-weight:900; font-size:0.82rem; color:var(--blue); cursor:pointer;">
                 <input type="checkbox" id="ps-emp-iess" style="width:16px; height:16px;">
-                Afiliado al IESS (se le calculará el aporte personal 9.45%)
+                Afiliado al IESS
             </label>
+            <div style="margin-top:10px;">
+                <span class="field-label">TIPO DE AFILIACIÓN</span>
+                <select id="ps-emp-tipoaf" class="input-neo" onchange="PersonalModule.mostrarInfoTipo()"></select>
+                <div id="ps-emp-tipoaf-info" style="font-size:.7rem; color:#718096; margin-top:4px;"></div>
+            </div>
             <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
                 <span class="field-label" style="margin-bottom:8px;">BENEFICIOS MENSUALIZADOS (el empleado eligió recibirlos cada mes en vez de acumulados)</span>
                 <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; font-weight:700; margin-top:6px; cursor:pointer;">

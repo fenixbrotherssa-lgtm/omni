@@ -4,6 +4,7 @@ const PersonalModule = {
     _sedeId: null,
     _personal: [],
     _nominaData: null,
+    _tiposAf: [],
     _nombreSede: 'MasterHotel',
 
     async init() {
@@ -139,6 +140,7 @@ const PersonalModule = {
         document.getElementById('ps-emp-tel').value     = emp?.Telefono     || '';
         document.getElementById('ps-emp-correo').value  = emp?.Correo       || '';
         document.getElementById('ps-emp-iess').checked  = !!emp?.AfiliadoIESS;
+        this._llenarTiposAfiliacion(emp?.TipoAfiliacion || 'GENERAL');
         document.getElementById('ps-emp-d13').checked   = !!emp?.DecimoTerceroMensualizado;
         document.getElementById('ps-emp-d14').checked   = !!emp?.DecimoCuartoMensualizado;
         document.getElementById('ps-emp-fr').checked    = !!emp?.FondoReservaMensualizado;
@@ -249,6 +251,7 @@ const PersonalModule = {
                 telefono:      document.getElementById('ps-emp-tel').value.trim()     || undefined,
                 correo:        document.getElementById('ps-emp-correo').value.trim()  || undefined,
                 afiliadoIESS:              document.getElementById('ps-emp-iess').checked,
+                tipoAfiliacion:            document.getElementById('ps-emp-tipoaf')?.value || 'GENERAL',
                 decimoTerceroMensualizado: document.getElementById('ps-emp-d13').checked,
                 decimoCuartoMensualizado:  document.getElementById('ps-emp-d14').checked,
                 fondoReservaMensualizado:  document.getElementById('ps-emp-fr').checked
@@ -636,14 +639,15 @@ const PersonalModule = {
                 <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
                     <thead><tr><th style="text-align:left; padding:6px 10px;">Beneficio</th><th style="text-align:right; padding:6px 10px;">Acumulado del mes</th><th style="padding:6px 10px;">Estado</th></tr></thead>
                     <tbody>
-                        ${fila('Décimo Tercero', n.DecimoTerceroAcumulado, n.DecimoTerceroMensualizado)}
-                        ${fila('Décimo Cuarto (SBU $' + (p.SBU || 0).toFixed(2) + '/12)', n.DecimoCuartoAcumulado, n.DecimoCuartoMensualizado)}
+                        ${fila('Décimo Tercero', n.DecimoTerceroAcumulado, n.DecimoTerceroMensualizado, n.AplicaDecimos !== false)}
+                        ${fila('Décimo Cuarto (SBU $' + (p.SBU || 0).toFixed(2) + '/12)', n.DecimoCuartoAcumulado, n.DecimoCuartoMensualizado, n.AplicaDecimos !== false)}
                         ${fila('Fondo de Reserva', n.FondoReservaAcumulado, n.FondoReservaMensualizado, n.FondoReservaAplica)}
-                        ${fila('Vacaciones', n.VacacionesAcumulado, false, n.AfiliadoIESS)}
-                        ${fila('Aporte Patronal IESS', n.AportePatronalIess, false, n.AfiliadoIESS)}
+                        ${fila('Vacaciones', n.VacacionesAcumulado, false, n.AfiliadoIESS && n.AplicaVacaciones !== false)}
+                        ${fila('Aporte Patronal IESS' + (n.PorcAportePatronal != null ? ' (' + (n.PorcAportePatronal * 100).toFixed(2) + '%)' : ''), n.AportePatronalIess, false, n.AfiliadoIESS)}
                     </tbody>
                 </table>
                 <p style="font-size:0.7rem; color:#718096; margin-top:12px; text-align:left;">
+                    Afiliación: <b>${n.TipoAfiliacionNombre || 'Relación de dependencia'}</b>${n.Prorrateado ? ` · Mes proporcional: ${n.DiasTrabajados} de 30 días (sueldo de contrato $${(n.SalarioContrato || 0).toFixed(2)})` : ''}.<br>
                     Antigüedad: ${n.AntiguedadMeses} meses. El Fondo de Reserva aplica desde el mes 13 de servicio continuo (Art. 196 Código de Trabajo).
                     Lo "mensualizado" es elección del empleado — configúralo al editar el empleado.
                 </p>
@@ -660,7 +664,7 @@ const PersonalModule = {
 
         // Ingresos: lo que efectivamente incrementa el pago de este mes.
         const filasIngresos = [
-            ['Salario Base',                              `$${n.SalarioBase.toFixed(2)}`],
+            [n.Prorrateado ? `Salario (${n.DiasTrabajados} de 30 días — proporcional)` : 'Salario Base', `$${n.SalarioBase.toFixed(2)}`],
             n.HorasExtra > 0 ? ['(+) Horas suplementarias/extraordinarias', `$${n.HorasExtra.toFixed(2)}`] : null,
             n.Bonos      > 0 ? ['(+) Bonos / Incentivos',                   `$${n.Bonos.toFixed(2)}`]      : null,
             n.DecimoTerceroMensualizado ? ['(+) Décimo Tercero (mensualizado)', `$${n.DecimoTerceroAcumulado.toFixed(2)}`] : null,
@@ -672,7 +676,7 @@ const PersonalModule = {
         const filasDeducciones = [
             n.Adelantos           > 0 ? ['(-) Adelantos de nómina',      `$${n.Adelantos.toFixed(2)}`]           : null,
             n.Descuentos          > 0 ? ['(-) Otros descuentos',         `$${n.Descuentos.toFixed(2)}`]          : null,
-            n.AporteIessPersonal  > 0 ? [`(-) Aporte Personal IESS (9.45%)`, `$${n.AporteIessPersonal.toFixed(2)}`] : null,
+            n.AporteIessPersonal  > 0 ? [`(-) Aporte Personal IESS (${((n.PorcAportePersonal ?? 0.0945) * 100).toFixed(2)}%)`, `$${n.AporteIessPersonal.toFixed(2)}`] : null,
         ].filter(Boolean);
 
         // Provisiones informativas: se acumulan pero NO se pagan este mes (a menos que estén mensualizadas arriba).
@@ -680,13 +684,13 @@ const PersonalModule = {
         // se seleccionó, no se muestran en el recibo impreso (el detalle completo sigue disponible en "Provisiones").
         const filasProvisiones = [
             (n.FondoReservaAplica && !n.FondoReservaMensualizado) ? ['Fondo de Reserva acumulado (no pagado este mes)', `$${n.FondoReservaAcumulado.toFixed(2)}`] : null,
-            n.AfiliadoIESS ? ['Vacaciones acumuladas',                     `$${n.VacacionesAcumulado.toFixed(2)}`] : null,
-            n.AfiliadoIESS ? ['Aporte Patronal IESS (a cargo del hotel, informativo)', `$${n.AportePatronalIess.toFixed(2)}`] : null,
+            (n.AfiliadoIESS && n.AplicaVacaciones !== false) ? ['Vacaciones acumuladas',                     `$${n.VacacionesAcumulado.toFixed(2)}`] : null,
+            n.AfiliadoIESS ? [`Aporte Patronal IESS (${((n.PorcAportePatronal ?? 0.1115) * 100).toFixed(2)}%, a cargo del empleador, informativo)`, `$${n.AportePatronalIess.toFixed(2)}`] : null,
         ].filter(Boolean);
 
         const html = this._tplComprobante({
             titulo:   'COMPROBANTE DE PAGO DE NÓMINA',
-            periodo:  `Período: ${periodo}${emp.AfiliadoIESS ? ' · Afiliado IESS' : ''}`,
+            periodo:  `Período: ${periodo}${emp.AfiliadoIESS ? ' · Afiliado IESS — ' + (n.TipoAfiliacionNombre || 'Relación de dependencia') : ''}`,
             emp,
             filas: [
                 ['INGRESOS', ''],
@@ -775,6 +779,98 @@ const PersonalModule = {
             </button>
         </div>
         </body></html>`;
+    },
+
+    // ── Tipos de afiliación IESS (GENERAL, GERENTE/mandatario, ...) ──
+    async _cargarTiposAfiliacion() {
+        try { this._tiposAf = (await api.get('/personal/tipos-afiliacion')).data.tipos || []; }
+        catch (_) { this._tiposAf = []; }
+        return this._tiposAf;
+    },
+
+    _pct(v) { return v === null || v === undefined ? null : (parseFloat(v) * 100).toFixed(2) + '%'; },
+
+    _descTipo(t) {
+        if (!t) return '';
+        const ap = t.AportePersonal == null ? 'del año' : this._pct(t.AportePersonal);
+        const at = t.AportePatronal == null ? 'del año' : this._pct(t.AportePatronal);
+        const no = [!t.AplicaDecimos && 'décimos', !t.AplicaFondoReserva && 'fondo de reserva', !t.AplicaVacaciones && 'vacaciones'].filter(Boolean);
+        return `Aporte personal ${ap} · patronal ${at}${t.BaseMinimaSBU ? ' · base mínima SBU' : ''}${no.length ? ' · sin ' + no.join(', ') : ''}`;
+    },
+
+    async _llenarTiposAfiliacion(actual) {
+        const sel = document.getElementById('ps-emp-tipoaf');
+        if (!sel) return;
+        const tipos = this._tiposAf.length ? this._tiposAf : await this._cargarTiposAfiliacion();
+        const lista = tipos.length ? tipos : [{ Codigo: 'GENERAL', Nombre: 'Relación de dependencia (Código del Trabajo)' }];
+        sel.innerHTML = lista.map(t => `<option value="${t.Codigo}">${t.Nombre}</option>`).join('');
+        sel.value = lista.some(t => t.Codigo === actual) ? actual : 'GENERAL';
+        this.mostrarInfoTipo();
+    },
+
+    mostrarInfoTipo() {
+        const sel = document.getElementById('ps-emp-tipoaf');
+        const info = document.getElementById('ps-emp-tipoaf-info');
+        if (!sel || !info) return;
+        info.textContent = this._descTipo(this._tiposAf.find(t => t.Codigo === sel.value));
+    },
+
+    async abrirTiposAfiliacion() {
+        const tipos = await this._cargarTiposAfiliacion();
+        const filas = tipos.map(t => `
+            <tr>
+                <td style="text-align:left;padding:6px"><b>${t.Codigo}</b><br><span style="font-size:.72rem">${t.Nombre}</span></td>
+                <td style="text-align:left;padding:6px;font-size:.72rem">${this._descTipo(t)}</td>
+                <td style="padding:6px"><button class="swal2-confirm swal2-styled" style="padding:4px 10px;margin:0;font-size:.75rem" onclick="PersonalModule.editarTipoAfiliacion('${t.Codigo}')">Editar</button></td>
+            </tr>`).join('');
+        Swal.fire({
+            title: 'Tipos de afiliación IESS', width: 720,
+            html: `<p style="font-size:.75rem;color:#718096;text-align:left">Cada empleado tiene un tipo. GENERAL usa los porcentajes del año (Parámetros IESS/SBU). GERENTE es el representante legal / mandatario sin relación de dependencia (relación 109 del IESS). Ajusta los valores si la normativa cambia.</p>
+                   <table style="width:100%;border-collapse:collapse;font-size:.8rem">${filas}</table>`,
+            showCancelButton: true, confirmButtonText: '<i class="fas fa-plus"></i> Nuevo tipo', cancelButtonText: 'Cerrar', confirmButtonColor: '#1a365d'
+        }).then(r => { if (r.isConfirmed) this.editarTipoAfiliacion(null); });
+    },
+
+    async editarTipoAfiliacion(codigo) {
+        const t = this._tiposAf.find(x => x.Codigo === codigo) || { Codigo: '', Nombre: '', AportePersonal: null, AportePatronal: null, BaseMinimaSBU: false, AplicaDecimos: true, AplicaFondoReserva: true, AplicaVacaciones: true, Nota: '' };
+        const esGeneral = t.Codigo === 'GENERAL';
+        const chk = (id, v, label) => `<label style="display:flex;align-items:center;gap:8px;font-size:.8rem;margin-top:6px"><input type="checkbox" id="${id}" ${v ? 'checked' : ''}> ${label}</label>`;
+        const { value: form } = await Swal.fire({
+            title: codigo ? `Tipo ${codigo}` : 'Nuevo tipo de afiliación', width: 520,
+            html: `<div style="text-align:left;display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:.75rem;font-weight:800">Código</label>
+                <input id="ta-cod" class="swal2-input" style="margin:0" value="${t.Codigo}" ${codigo ? 'disabled' : ''} placeholder="Ej. GERENTE">
+                <label style="font-size:.75rem;font-weight:800">Nombre</label>
+                <input id="ta-nom" class="swal2-input" style="margin:0" value="${(t.Nombre || '').replace(/"/g, '&quot;')}">
+                <label style="font-size:.75rem;font-weight:800">Aporte personal (fracción, ej. 0.0945) ${esGeneral ? '— usa el del año' : '— vacío = el del año'}</label>
+                <input id="ta-ap" type="number" step="0.0001" class="swal2-input" style="margin:0" value="${t.AportePersonal ?? ''}" ${esGeneral ? 'disabled' : ''}>
+                <label style="font-size:.75rem;font-weight:800">Aporte patronal (fracción, ej. 0.1760) ${esGeneral ? '— usa el del año' : '— vacío = el del año'}</label>
+                <input id="ta-at" type="number" step="0.0001" class="swal2-input" style="margin:0" value="${t.AportePatronal ?? ''}" ${esGeneral ? 'disabled' : ''}>
+                ${chk('ta-sbu', t.BaseMinimaSBU, 'La base de aporte no puede ser menor al SBU')}
+                ${chk('ta-dec', t.AplicaDecimos, 'Tiene décimo tercero y cuarto')}
+                ${chk('ta-fr', t.AplicaFondoReserva, 'Tiene fondo de reserva')}
+                ${chk('ta-vac', t.AplicaVacaciones, 'Tiene vacaciones')}
+                <label style="font-size:.75rem;font-weight:800;margin-top:6px">Nota</label>
+                <textarea id="ta-nota" class="swal2-textarea" style="margin:0">${t.Nota || ''}</textarea>
+            </div>`,
+            showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#1a365d',
+            preConfirm: () => {
+                const v = id => document.getElementById(id).value;
+                const c = id => document.getElementById(id).checked;
+                if (!v('ta-cod').trim() || !v('ta-nom').trim()) return Swal.showValidationMessage('Código y nombre son obligatorios');
+                return { codigo: v('ta-cod'), nombre: v('ta-nom'), aportePersonal: esGeneral ? null : v('ta-ap'), aportePatronal: esGeneral ? null : v('ta-at'),
+                         baseMinimaSBU: c('ta-sbu'), aplicaDecimos: c('ta-dec'), aplicaFondoReserva: c('ta-fr'), aplicaVacaciones: c('ta-vac'), nota: v('ta-nota') };
+            }
+        });
+        if (!form) return;
+        try {
+            await api.post('/personal/tipos-afiliacion', form);
+            await this._cargarTiposAfiliacion();
+            window.Toast.fire({ icon: 'success', title: 'Tipo de afiliación guardado' });
+            this.abrirTiposAfiliacion();
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.error || e.message, confirmButtonColor: '#1a365d' });
+        }
     },
 
     async abrirParametrosLaborales() {
