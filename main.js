@@ -5,22 +5,30 @@ const fs = require('fs');
 let mainWindow = null;
 
 // ── Ruta del config.js editable (dirección del backend) ──────
-// Empaquetado: junto a resources\ (extraResource, fuera del asar → escribible).
-// Desarrollo: la raíz del proyecto.
+// Empaquetado: la dirección elegida por el usuario vive en userData
+// (%APPDATA%\omnicore-frontend\config.js), que SOBREVIVE a las
+// actualizaciones. resources\config.js es solo el valor por defecto del
+// instalador: cada actualización lo reemplaza (antes eso desconectaba a los
+// clientes Local de su servidor). Desarrollo: la raíz del proyecto.
 function configPath() {
     return app.isPackaged
-        ? path.join(process.resourcesPath, 'config.js')
+        ? path.join(app.getPath('userData'), 'config.js')
         : path.join(__dirname, 'config.js');
 }
 
+function configPorDefecto() {
+    return app.isPackaged ? path.join(process.resourcesPath, 'config.js') : configPath();
+}
+
 function leerConfig() {
-    const p = configPath();
-    try {
-        if (fs.existsSync(p)) {
-            delete require.cache[require.resolve(p)];
-            return require(p);
-        }
-    } catch (e) { console.error('config.js:', e.message); }
+    for (const p of [configPath(), configPorDefecto()]) {
+        try {
+            if (fs.existsSync(p)) {
+                delete require.cache[require.resolve(p)];
+                return require(p);
+            }
+        } catch (e) { console.error('config.js:', p, e.message); }
+    }
     return null;
 }
 
@@ -88,6 +96,7 @@ ipcMain.handle('omni:set-server', (_e, { address, port }) => {
 module.exports = CONFIG;
 `;
     try {
+        fs.mkdirSync(path.dirname(configPath()), { recursive: true });
         fs.writeFileSync(configPath(), contenido, 'utf8');
         app.relaunch();
         app.exit(0);

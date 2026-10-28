@@ -46,6 +46,34 @@
       ${EndIf}
     ${Loop}
   ${EndIf}
+
+  ; Versiones ≤ 4.5.12 empaquetaban por error @capacitor (app Android) con
+  ; rutas de ~259 caracteres. Al actualizar, el desinstalador viejo mueve cada
+  ; archivo a %TEMP%\nsXXXX.tmp\old-install (ruta más larga), supera el límite
+  ; de 260 de Windows, aborta, y tras 5 intentos electron-builder mostraba
+  ; "No se puede cerrar OMNI CORE" aunque la app estuviera cerrada. Se borra
+  ; esa carpeta de la instalación anterior ANTES de correr su desinstalador.
+  ReadRegStr $R2 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+  ${If} $R2 != ""
+    RMDir /r "$R2\resources\app.asar.unpacked\node_modules\@capacitor"
+  ${EndIf}
+
+  ; Hasta 4.5.12 la dirección del servidor vivía en <instalación>\resources\
+  ; config.js y cada actualización la pisaba con la de fábrica. Desde 4.5.13
+  ; vive en %APPDATA%\<app>\config.js (userData de Electron). Se migra la de
+  ; la instalación anterior (por usuario, o la vieja por máquina en Program
+  ; Files) si todavía no hay una guardada.
+  ${IfNot} ${FileExists} "$APPDATA\${APP_PACKAGE_NAME}\config.js"
+    ${If} $R2 == ""
+    ${OrIfNot} ${FileExists} "$R2\resources\config.js"
+      ReadRegStr $R2 HKLM "${INSTALL_REGISTRY_KEY}" InstallLocation
+    ${EndIf}
+    ${If} $R2 != ""
+    ${AndIf} ${FileExists} "$R2\resources\config.js"
+      CreateDirectory "$APPDATA\${APP_PACKAGE_NAME}"
+      CopyFiles /SILENT "$R2\resources\config.js" "$APPDATA\${APP_PACKAGE_NAME}\config.js"
+    ${EndIf}
+  ${EndIf}
 !macroend
 
 ; El desinstalador de la versión ANTERIOR (que trae su propia verificación,
