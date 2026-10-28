@@ -8,9 +8,9 @@
         --hotel-danger: #e74c3c;
     }
 
-    .modulo-container { 
-        padding: 40px; 
-        animation: fadeIn 0.4s ease-out; 
+    .modulo-container {
+        padding: 40px;
+        animation: fadeIn 0.4s ease-out;
         min-height: 100%;
         background: var(--hotel-bg);
     }
@@ -36,13 +36,13 @@
 
     /* FILTROS */
     .toolbar-filtro {
-        display: flex; 
-        gap: 15px; 
-        margin-bottom: 25px; 
-        align-items: center; 
-        background: var(--hotel-bg); 
-        padding: 20px; 
-        border-radius: 20px; 
+        display: flex;
+        gap: 15px;
+        margin-bottom: 25px;
+        align-items: center;
+        background: var(--hotel-bg);
+        padding: 20px;
+        border-radius: 20px;
         box-shadow: 6px 6px 12px var(--hotel-shadow-dark), -6px -6px 12px var(--hotel-shadow-light);
     }
 
@@ -144,12 +144,12 @@
     }
 
     .modal-hidden { display: none !important; }
-    
-    .productos-grid { 
-        display: grid; 
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
-        gap: 25px; 
-        margin-top: 10px; 
+
+    .productos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 25px;
+        margin-top: 10px;
     }
 
     /* ESTILOS DEL HISTORIAL (RELOJ DE TIEMPO) */
@@ -173,8 +173,8 @@
     @media print {
         .no-print, .btn-neo, .header-modulo, .modal-neo, .modulo-container, .toolbar-filtro { display: none !important; }
         body { background: white !important; margin: 0; padding: 0; }
-        #area-impresion-acta { 
-            display: block !important; 
+        #area-impresion-acta {
+            display: block !important;
             padding: 40px;
             color: black;
             font-family: 'Arial', sans-serif;
@@ -194,8 +194,8 @@
 <div id="seccion-activos" class="modulo-container">
     <div class="header-modulo">
         <div class="header-left">
-            <button class="btn-neo btn-back no-print" 
-                    onclick="App.renderView('inventario', 'app-root')" 
+            <button class="btn-neo btn-back no-print"
+                    onclick="App.renderView('dashboard', 'viewport')"
                     title="REGRESAR">
                 <i class="fas fa-arrow-left"></i>
             </button>
@@ -205,12 +205,16 @@
             </div>
             <div id="sedeSelectorActivos"></div>
         </div>
-        
+
         <div style="display:flex; gap:10px;" class="no-print">
+            <button class="btn-neo" style="background:#e9f7ef;color:#1e8e4e;" onclick="ActivosModule.mostrarQRLevantamiento()" title="Inventario físico desde el celular, en la empresa activa">
+                <i class="fas fa-mobile-screen-button"></i> LEVANTAMIENTO MÓVIL
+            </button>
+
             <button class="btn-neo btn-qr-bulk" onclick="ActivosModule.imprimirTodasLasEtiquetas()" title="Imprimir Etiquetas QR Auditales">
                 <i class="fas fa-qrcode"></i> IMPRIMIR ETIQUETAS
             </button>
-            
+
             <button class="btn-neo btn-print" onclick="ActivosModule.imprimirReporteOficial('TODOS')" title="Imprimir Reporte de Inventario">
                 <i class="fas fa-file-invoice"></i> REPORTE OFICIAL
             </button>
@@ -227,16 +231,11 @@
 
     <div class="toolbar-filtro no-print">
         <input type="text" id="filtroTextoActivo" class="input-neo" placeholder="🔍 Buscar por nombre o serie..." style="margin-bottom: 0; flex: 2;">
-        
+
         <select id="filtroTipoActivo" class="input-neo" style="margin-bottom: 0; flex: 1;">
             <option value="TODOS">Todos los Tipos</option>
-            <option value="1">Vehículos</option>
-            <option value="2">Equipo Cómputo</option>
-            <option value="3">Mobiliario</option>
-            <option value="4">Maquinaria</option>
-            <option value="5">Otros</option>
         </select>
-        
+
         <select id="filtroEstadoActivo" class="input-neo" style="margin-bottom: 0; flex: 1;">
             <option value="TODOS">Todos los Estados</option>
             <option value="OPERATIVO">Operativo</option>
@@ -255,27 +254,35 @@
         <h3 id="modal-titulo" style="text-align:center; color: var(--hotel-blue); font-weight: 900; margin-bottom: 25px; border-bottom: 2px solid var(--hotel-gold); padding-bottom: 15px; text-transform: uppercase;">
             Gestionar Activo
         </h3>
-        
+
         <input type="hidden" id="activoId-input">
 
         <div id="form-registro">
             <label class="label-hint">Nombre del Activo</label>
             <input type="text" id="nombre-input" class="input-neo" placeholder="Ej: Laptop Dell XPS">
-            
+
             <label class="label-hint">Serie o Placa</label>
             <input type="text" id="serie-input" class="input-neo" placeholder="Número de serie o código de placa">
-            
-            <label class="label-hint">Valor de Compra ($)</label>
-            <input type="number" id="valor-input" class="input-neo" placeholder="0.00" step="0.01">
-            
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1"><label class="label-hint">Valor unitario ($)</label>
+                    <input type="number" id="valor-input" class="input-neo" placeholder="0.00" step="0.01"></div>
+                <div style="width:110px"><label class="label-hint">Cantidad</label>
+                    <input type="number" id="cantidad-input" class="input-neo" value="1" min="1" step="1"></div>
+            </div>
+
             <label class="label-hint">Tipo de Activo</label>
-            <select id="tipo-input" class="input-neo">
-                <option value="1">Vehículos</option>
-                <option value="2">Equipo Cómputo</option>
-                <option value="3">Mobiliario</option>
-                <option value="4">Maquinaria</option>
-                <option value="5">Otros</option>
-            </select>
+            <select id="tipo-input" class="input-neo"></select>
+
+            <label class="label-hint">Ubicación (lugar donde está)</label>
+            <input type="text" id="ubicacion-input" class="input-neo" placeholder="Ej: Bodega principal, Oficina gerencia">
+
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1"><label class="label-hint">Marca</label><input type="text" id="marca-input" class="input-neo"></div>
+                <div style="flex:1"><label class="label-hint">Modelo</label><input type="text" id="modelo-input" class="input-neo"></div>
+            </div>
+            <label class="label-hint">Responsable / custodio</label>
+            <input type="text" id="responsable-activo-input" class="input-neo" placeholder="Quién lo tiene a cargo">
         </div>
 
         <div id="form-movimiento" style="display:none;">
@@ -294,7 +301,7 @@
                 <label class="label-hint">Sede Destino</label>
                 <select id="sede-destino-input" class="input-neo"></select>
             </div>
-            
+
             <label class="label-hint">Observaciones del Movimiento</label>
             <textarea id="obs-input" class="input-neo" placeholder="Describa el motivo, destino o detalle técnico"></textarea>
 
@@ -324,7 +331,7 @@
         <h2>ACTA DE ENTREGA - RECEPCIÓN DE ACTIVO FIJO</h2>
         <p>Fecha de Emisión: <span id="acta-fecha"></span></p>
     </div>
-    
+
     <div class="acta-seccion">
         <p><strong>DATOS DEL ACTIVO:</strong></p>
         <ul>

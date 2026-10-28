@@ -1,5 +1,8 @@
 const api = require('./api');
 
+const _esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _money = n => '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const InventarioModule = {
     productos: [],
     categorias: [],
@@ -7,11 +10,11 @@ const InventarioModule = {
     state: {
         busqueda: '',
         categoria: 'TODAS',
-        tipo: 'TODOS'
+        tipo: 'TODOS',
+        soloBajo: false
     },
 
     async init() {
-        window.backView = 'inventarios';
         this.renderSedeSelector();
         await this.cargarCategorias();
         await this.cargarProductos();
@@ -36,6 +39,8 @@ const InventarioModule = {
         if (inputBusqueda) inputBusqueda.oninput = (e) => { this.state.busqueda = e.target.value; this.renderProductos(); };
         if (selectCat) selectCat.onchange = (e) => { this.state.categoria = e.target.value; this.renderProductos(); };
         if (selectTipo) selectTipo.onchange = (e) => { this.state.tipo = e.target.value; this.renderProductos(); };
+        const chkBajo = document.getElementById('filtroBajo');
+        if (chkBajo) chkBajo.onchange = (e) => { this.state.soloBajo = e.target.checked; this.renderProductos(); };
     },
 
     // --- LÓGICA DE UI ---
@@ -82,38 +87,29 @@ const InventarioModule = {
     renderCategoriasLista() {
         const lista = document.getElementById('listaCategorias');
         if (!lista) return;
-        const tipoLabel = { ALIMENTO: '🍽 Alimento', BEBIDA: '🥤 Bebida', COMERCIAL: '🛒 Comercial' };
-        const tipoColor = { ALIMENTO: '#27ae60', BEBIDA: '#2980b9', COMERCIAL: '#8e44ad' };
-        lista.innerHTML = this.categorias.map(c => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:10px; background:white; border-radius:15px; box-shadow: 4px 4px 8px #bebebe;">
-                <div>
-                    <span style="font-weight:700; color:#1a365d;">${c.Nombre}</span>
-                    <span style="font-size:0.7rem; font-weight:700; color:white; background:${tipoColor[c.Tipo] || '#999'}; border-radius:8px; padding:2px 8px; margin-left:8px;">
-                        ${tipoLabel[c.Tipo] || c.Tipo || 'COMERCIAL'}
-                    </span>
+        const tipoLabel = { ALIMENTO: 'Alimento', BEBIDA: 'Bebida', COMERCIAL: 'Comercial' };
+        const tipoColor = { ALIMENTO: 'background:#e8f8ef;color:#1e8e4e', BEBIDA: 'background:#e8eefc;color:#1a5fc0', COMERCIAL: 'background:#f1e9fb;color:#7a3fc0' };
+        lista.innerHTML = this.categorias.length ? this.categorias.map(c => `
+            <div class="inv-cat">
+                <div><b style="color:#1a365d">${_esc(c.Nombre)}</b>
+                    <span class="inv-tag" style="${tipoColor[c.Tipo] || tipoColor.COMERCIAL}">${tipoLabel[c.Tipo] || _esc(c.Tipo) || 'Comercial'}</span></div>
+                <div class="inv-acc">
+                    <button class="inv-ib e" title="Cambiar tipo" onclick="InventarioModule.editarTipoCategoria(${c.CategoriaID}, '${_esc(c.Nombre).replace(/'/g, '&#39;')}', '${c.Tipo || 'COMERCIAL'}')"><i class="fas fa-pen"></i></button>
+                    <button class="inv-ib d" title="Eliminar" onclick="InventarioModule.eliminarCategoria(${c.CategoriaID})"><i class="fas fa-trash"></i></button>
                 </div>
-                <div style="display:flex; gap:6px;">
-                    <button class="btn-neo" style="padding:5px 10px; color:#2980b9; box-shadow:none;" onclick="InventarioModule.editarTipoCategoria(${c.CategoriaID}, '${c.Nombre}', '${c.Tipo || 'COMERCIAL'}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-neo" style="padding:5px 10px; color:#e74c3c; box-shadow:none;" onclick="InventarioModule.eliminarCategoria(${c.CategoriaID})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            </div>`).join('') : '<div class="omni-empty">Sin categorías</div>';
     },
 
     async editarTipoCategoria(id, nombre, tipoActual) {
         const { value: nuevoTipo } = await Swal.fire({
             title: `Tipo de "${nombre}"`,
             input: 'select',
-            inputOptions: { ALIMENTO: '🍽 Alimento', BEBIDA: '🥤 Bebida', COMERCIAL: '🛒 Comercial' },
+            inputOptions: { COMERCIAL: 'Comercial', ALIMENTO: 'Alimento', BEBIDA: 'Bebida' },
             inputValue: tipoActual,
             showCancelButton: true,
             confirmButtonText: 'Guardar',
             cancelButtonText: 'Cancelar',
-            background: '#e0e0e4'
+            confirmButtonColor: '#2f7be6'
         });
         if (!nuevoTipo) return;
         try {
@@ -166,7 +162,7 @@ const InventarioModule = {
         const sedeId = selector ? selector.value : App.user.SedeID;
         const grid = document.getElementById('gridProductos');
         if (!grid) return;
-        grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Cargando inventario...</p>';
+        grid.innerHTML = '<tr><td colspan="10" class="omni-empty">Cargando inventario...</td></tr>';
 
         try {
             const res = await api.get(`/inventario/sede/${sedeId}`);
@@ -180,61 +176,65 @@ const InventarioModule = {
     renderProductos() {
         const grid = document.getElementById('gridProductos');
         if (!grid) return;
+        const esServicio = p => p.TipoItem === 'SERVICIO';
+        const bajoMin = p => !esServicio(p) && (parseInt(p.StockActual) || 0) <= (parseInt(p.StockMinimo) || 0);
 
-        // 1. Filtrado basado en el Estado
-        const productosFiltrados = this.productos.filter(p => {
-            const matchBusqueda = p.Nombre.toLowerCase().includes(this.state.busqueda.toLowerCase());
+        // Resumen de la empresa (sobre todo el inventario, no solo lo filtrado)
+        const fisicos = this.productos.filter(p => !esServicio(p));
+        const unidades = fisicos.reduce((s, p) => s + Math.max(0, parseInt(p.StockActual) || 0), 0);
+        const valor = fisicos.reduce((s, p) => s + Math.max(0, parseInt(p.StockActual) || 0) * Number(p.CostoCompra || 0), 0);
+        const bajos = fisicos.filter(bajoMin).length;
+        const sinStock = fisicos.filter(p => (parseInt(p.StockActual) || 0) <= 0).length;
+        const cards = document.getElementById('inv-cards');
+        if (cards) cards.innerHTML = `
+            <div class="omni-card"><span>Productos</span><b>${fisicos.length}</b></div>
+            <div class="omni-card"><span>Unidades en stock</span><b>${unidades.toLocaleString('es-EC')}</b></div>
+            <div class="omni-card"><span>Valor del inventario (costo)</span><b>${_money(valor)}</b></div>
+            <div class="omni-card ${bajos ? 'warn' : ''}"><span>Bajo stock mínimo</span><b>${bajos}</b></div>
+            <div class="omni-card ${sinStock ? 'hot' : ''}"><span>Sin stock</span><b>${sinStock}</b></div>
+            <div class="omni-card"><span>Servicios</span><b>${this.productos.length - fisicos.length}</b></div>`;
+
+        const txt = this.state.busqueda.toLowerCase().trim();
+        const filtrados = this.productos.filter(p => {
+            const matchBusqueda = !txt || String(p.Nombre || '').toLowerCase().includes(txt) || String(p.CodigoBarras || '').toLowerCase().includes(txt);
             const matchCat = (this.state.categoria === 'TODAS' || p.CategoriaID == this.state.categoria);
             const matchTipo = (this.state.tipo === 'TODOS' || p.TipoItem === this.state.tipo);
-            return matchBusqueda && matchCat && matchTipo;
+            return matchBusqueda && matchCat && matchTipo && (!this.state.soloBajo || bajoMin(p));
         });
 
-        if (productosFiltrados.length === 0) {
-            grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">No se encontraron resultados.</p>';
+        const cnt = document.getElementById('inv-count');
+        if (cnt) cnt.textContent = `${filtrados.length} de ${this.productos.length}`;
+
+        if (!filtrados.length) {
+            grid.innerHTML = `<tr><td colspan="10" class="omni-empty">${this.productos.length ? 'No hay productos con estos filtros.' : 'Esta empresa aún no tiene productos. Créalos con "Nuevo producto" y registra su entrada como Compra.'}</td></tr>`;
             return;
         }
 
-        // 2. Renderizado de Tarjetas
-        grid.innerHTML = productosFiltrados.map(p => {
-            const stockActual = parseInt(p.StockActual) || 0;
-            const stockMinimo = parseInt(p.StockMinimo) || 0;
-            
-            // Evaluamos estado crítico de stock para TODO tipo de ítem
-            const esCritico = (stockActual <= stockMinimo);
-
-            // Etiqueta visual para distinguir si es servicio o producto
-            const iconTipo = p.TipoItem === 'SERVICIO' ? '<i class="fas fa-briefcase"></i> SERV | ' : '<i class="fas fa-box"></i> ';
-
+        const badge = { VENTA: ['inv-b-venta', 'Venta'], INSUMO: ['inv-b-insumo', 'Insumo'], SERVICIO: ['inv-b-serv', 'Servicio'] };
+        grid.innerHTML = filtrados.map(p => {
+            const stock = parseInt(p.StockActual) || 0;
+            const serv = esServicio(p);
+            const b = badge[p.TipoItem] || badge.VENTA;
+            const claseStock = serv ? '' : (stock <= 0 ? 'inv-stock-cero' : (bajoMin(p) ? 'inv-stock-bajo' : ''));
+            const gravaIva = !(p.GravaIVA === false || p.GravaIVA === 0);
             return `
-            <div class="prod-card" style="${esCritico ? 'border: 2px solid var(--hotel-danger);' : ''}">
-                <div class="stock-badge" style="color: ${esCritico ? 'var(--hotel-danger)' : '#1a365d'}">
-                    ${iconTipo} STOCK: ${stockActual}
-                    ${esCritico ? '<br><small style="font-weight:900;">BAJO MÍNIMO</small>' : ''}
-                </div>
-                
-                <h4 style="margin: 10px 0; font-weight: 800; color: #1a365d;">${p.Nombre}</h4>
-                <p style="font-size:0.7rem; color:#7f8c8d; margin-bottom:10px; text-transform: uppercase;">${p.CategoriaNombre || 'Sin Categoría'}</p>
-                <span class="price-tag">$${parseFloat(p.PrecioVenta).toFixed(2)}</span>
-                
-                <div style="margin-top:15px; display:flex; flex-direction:column; gap:5px;">
-                    <button class="btn-neo" style="width:100%; justify-content:center;" onclick="InventarioModule.editarProducto(${p.ProductoID})">
-                        <i class="fas fa-edit"></i> EDITAR FICHA
-                    </button>
-
-                    <div style="display:flex; gap:5px;">
-                        <button class="btn-neo" style="flex:1" title="Historial trazable: compras, ventas y ajustes" onclick="InventarioModule.verKardex(${p.ProductoID})">
-                            <i class="fas fa-list-check"></i> Kardex
-                        </button>
-                        <button class="btn-neo" style="flex:1" title="Sobrante / faltante de conteo físico" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')">
-                            <i class="fas fa-tools"></i> Ajuste
-                        </button>
-                        <button class="btn-neo" style="flex:0 0 auto; color:#e74c3c;" title="Eliminar" onclick="InventarioModule.eliminarProducto(${p.ProductoID})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            `;
+            <tr>
+                <td><b style="color:#1a365d">${_esc(p.Nombre)}</b>${p.CodigoBarras ? `<span class="inv-cod">${_esc(p.CodigoBarras)}</span>` : ''}</td>
+                <td>${_esc(p.CategoriaNombre || 'Sin categoría')}</td>
+                <td><span class="inv-badge ${b[0]}">${b[1]}</span></td>
+                <td class="num ${claseStock}">${serv ? '—' : stock}${!serv && bajoMin(p) ? ' <i class="fas fa-triangle-exclamation" title="Bajo el stock mínimo"></i>' : ''}</td>
+                <td class="num">${serv ? '—' : (parseInt(p.StockMinimo) || 0)}</td>
+                <td class="num">${_money(p.CostoCompra)}</td>
+                <td class="num">${_money(p.PrecioVenta)}</td>
+                <td>${gravaIva ? '<span class="inv-badge inv-b-venta">Sí</span>' : '<span class="inv-badge" style="background:#e8f8ef;color:#1e8e4e">0%</span>'}</td>
+                <td class="num">${serv ? '—' : _money(Math.max(0, stock) * Number(p.CostoCompra || 0))}</td>
+                <td><div class="inv-acc">
+                    <button class="inv-ib k" title="Kardex: compras, ventas y ajustes" onclick="InventarioModule.verKardex(${p.ProductoID})"><i class="fas fa-list-check"></i> Kardex</button>
+                    ${serv ? '' : `<button class="inv-ib a" title="Ajuste por conteo físico" onclick="InventarioModule.abrirModalMovimiento(${p.ProductoID}, 'AJUSTE')"><i class="fas fa-scale-balanced"></i></button>`}
+                    <button class="inv-ib e" title="Editar ficha" onclick="InventarioModule.editarProducto(${p.ProductoID})"><i class="fas fa-pen"></i></button>
+                    <button class="inv-ib d" title="Eliminar / desactivar" onclick="InventarioModule.eliminarProducto(${p.ProductoID})"><i class="fas fa-trash"></i></button>
+                </div></td>
+            </tr>`;
         }).join('');
     },
 
@@ -405,12 +405,12 @@ const InventarioModule = {
             const html = `
                 <div style="text-align:left; max-height:400px; overflow-y:auto;">
                     ${desactivados.map(p => `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:8px; background:#f1f3f5; border-radius:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; margin-bottom:8px; background:#f6f8fb; border:1px solid #e3e8ef; border-radius:10px;">
                             <div>
                                 <strong>${p.Nombre}</strong>
                                 <span style="font-size:0.75rem; color:#7f8c8d;"> — ${p.CategoriaNombre || 'Sin categoría'}</span>
                             </div>
-                            <button class="btn-neo" style="padding:6px 12px;" onclick="InventarioModule.reactivarProducto(${p.ProductoID})">
+                            <button class="inv-ib k" onclick="InventarioModule.reactivarProducto(${p.ProductoID})">
                                 <i class="fas fa-undo"></i> Reactivar
                             </button>
                         </div>
@@ -422,8 +422,7 @@ const InventarioModule = {
                 html,
                 showConfirmButton: false,
                 showCloseButton: true,
-                background: '#e0e0e4',
-                width: 500
+                width: 520
             });
         } catch (e) {
             Swal.fire('Error', e.response?.data?.error || 'No se pudo cargar los productos desactivados', 'error');
@@ -491,6 +490,7 @@ const InventarioModule = {
             this.toggleStockFields();
         }
         
+        const st = document.getElementById('stockProd'); if (st) st.value = parseInt(p.StockActual) || 0;
         document.getElementById('minProd').value = p.StockMinimo;
         document.getElementById('idealProd').value = p.StockIdeal;
         document.getElementById('barraProd').value = p.CodigoBarras || '';

@@ -5,23 +5,27 @@ const { verAsiento } = require('./verAsiento');
  * CARGA DINÁMICA DE LIBRERÍA QR VÍA HTTP
  * Se consume directamente desde el servidor Express local.
  */
+// Subir la versión cada vez que cambie qrcode.min.js: el backend lo sirve con caché
+// y sin esto los clientes seguirían usando la copia vieja (la del bug de tildes/ñ).
+const QR_LIB_VERSION = '20261015';
+
 function loadQRCodeLib() {
     return new Promise(async (resolve) => {
-        if (window.QRCode) return resolve(); 
-        
+        if (window.QRCode) return resolve();
+
         try {
             const baseUrl = api.defaults.baseURL.replace('/api', '');
-            const scriptUrl = `${baseUrl}/assets/js/qrcode.min.js`;
+            const scriptUrl = `${baseUrl}/assets/js/qrcode.min.js?v=${QR_LIB_VERSION}`;
 
             const response = await fetch(scriptUrl);
             if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-            
+
             const scriptContent = await response.text();
-            
+
             const script = document.createElement('script');
             script.id = 'qr-lib';
-            script.textContent = scriptContent; 
-            
+            script.textContent = scriptContent;
+
             document.head.appendChild(script);
             console.log("✅ QR Lib inyectada exitosamente desde el servidor local");
             resolve();
@@ -29,7 +33,7 @@ function loadQRCodeLib() {
             console.error("❌ Error al inyectar QR Lib vía fetch. Usando fallback...", error);
             const baseUrl = api.defaults.baseURL.replace('/api', '');
             const scriptFallback = document.createElement('script');
-            scriptFallback.src = `${baseUrl}/assets/js/qrcode.min.js`;
+            scriptFallback.src = `${baseUrl}/assets/js/qrcode.min.js?v=${QR_LIB_VERSION}`;
             scriptFallback.onload = resolve;
             scriptFallback.onerror = () => {
                 console.error("Fallo crítico: No se pudo cargar qrcode.min.js.");
@@ -40,10 +44,31 @@ function loadQRCodeLib() {
     });
 }
 
+/**
+ * qrcode.min.js no crece solo: sin `typeNumber` usa un tamaño fijo y lanza
+ * "code length overflow" con textos largos (y, sin try/catch, dejaba sin QR a
+ * todos los activos siguientes). Se reintenta con typeNumber creciente hasta
+ * que el texto completo entre (portado de MasterHotel).
+ */
+function crearQRSeguro(container, text, opts) {
+    const { width = 100, height = 100, correctLevel } = opts || {};
+    let ultimoError = null;
+    for (let typeNumber = 4; typeNumber <= 40; typeNumber++) {
+        try {
+            container.innerHTML = '';
+            return new window.QRCode(container, { text, width, height, correctLevel, typeNumber });
+        } catch (err) { ultimoError = err; }
+    }
+    throw ultimoError || new Error('No se pudo generar el QR.');
+}
+
+const _esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 const ActivosModule = {
     activosCache: [],
+    tiposCache: [],
     sedeActualInfo: null,
-    modoActual: 'REGISTRO', 
+    modoActual: 'REGISTRO',
     state: {
         busqueda: '',
         tipo: 'TODOS',
@@ -52,8 +77,8 @@ const ActivosModule = {
 
     async init() {
         console.log("ActivosModule: Inicializado correctamente");
-        
-        window.backView = 'inventario'; 
+
+        window.backView = 'inventario';
         if (typeof Router !== 'undefined') Router.showBack(false);
 
         const container = document.getElementById('seccion-activos');
@@ -63,8 +88,20 @@ const ActivosModule = {
         this.renderSedeSelector();
 
         await loadQRCodeLib();
+        await this.cargarTipos();
         await this.cargarActivos();
         this.initFiltrosListeners();
+    },
+
+    // Tipos reales del catálogo (filtro, alta y edición)
+    async cargarTipos() {
+        try { this.tiposCache = (await api.get('/activos/tipos')).data || []; }
+        catch (_) { this.tiposCache = []; }
+        const ops = this.tiposCache.map(t => `<option value="${t.TipoID}">${_esc(t.Nombre)}</option>`).join('');
+        const f = document.getElementById('filtroTipoActivo');
+        if (f) { f.innerHTML = '<option value="TODOS">Todos los Tipos</option>' + ops; f.value = this.state.tipo || 'TODOS'; }
+        const sel = document.getElementById('tipo-input');
+        if (sel) sel.innerHTML = ops || '<option value="">— sin tipos —</option>';
     },
 
     renderSedeSelector() {
@@ -83,21 +120,21 @@ const ActivosModule = {
         const selectEstado = document.getElementById('filtroEstadoActivo');
 
         if (inputBusqueda) {
-            inputBusqueda.oninput = (e) => { 
-                this.state.busqueda = e.target.value; 
-                this.renderizarGrid(); 
+            inputBusqueda.oninput = (e) => {
+                this.state.busqueda = e.target.value;
+                this.renderizarGrid();
             };
         }
         if (selectTipo) {
-            selectTipo.onchange = (e) => { 
-                this.state.tipo = e.target.value; 
-                this.renderizarGrid(); 
+            selectTipo.onchange = (e) => {
+                this.state.tipo = e.target.value;
+                this.renderizarGrid();
             };
         }
         if (selectEstado) {
-            selectEstado.onchange = (e) => { 
-                this.state.estado = e.target.value; 
-                this.renderizarGrid(); 
+            selectEstado.onchange = (e) => {
+                this.state.estado = e.target.value;
+                this.renderizarGrid();
             };
         }
     },
@@ -105,9 +142,11 @@ const ActivosModule = {
     async cargarActivos() {
         try {
             const sedeId = this.getSedeId();
-            
-            const resSede = await api.get(`/sede/${sedeId}`);
-            this.sedeActualInfo = resSede.data || { NombreComercial: "Sede Central" };
+
+            // (Antes llamaba a /sede/:id, que no existe: la grilla siempre daba error.)
+            let sedes = (window.App && App.sedes && App.sedes.length) ? App.sedes : null;
+            if (!sedes) sedes = (await api.get('/admin/sedes')).data || [];
+            this.sedeActualInfo = sedes.find(s => String(s.SedeID) === String(sedeId)) || { NombreComercial: 'Empresa' };
 
             const res = await api.get(`/activos/${sedeId}?incluirBajas=1`);
             this.activosCache = (res && res.data) ? res.data : [];
@@ -142,16 +181,26 @@ const ActivosModule = {
             return;
         }
 
+        const baseUrl = api.defaults.baseURL.replace('/api', '');
+        const esAdmin = App.isSuperAdmin();
         grid.innerHTML = activosFiltrados.map(a => {
             const necesitaReingreso = (a.Estado === 'EN TRÁNSITO' || a.Estado === 'EN MANTENIMIENTO');
             const esBaja = ['BAJA', 'VENDIDO'].includes(a.Estado);
-            const enLibros = (Number(a.ValorCompra) - Number(a.DepreciacionAcumulada || 0)).toFixed(2);
+            const cant = parseInt(a.Cantidad, 10) || 1;
+            const costo = Number(a.ValorCompra || 0) * cant;
+            const enLibros = (costo - Number(a.DepreciacionAcumulada || 0)).toFixed(2);
+            const fotoUrl = a.FotoPath ? `${baseUrl}/uploads/${String(a.FotoPath).replace(/^\/?uploads\//, '')}` : '';
             return `
                 <div class="card-activo" style="border: 1px solid #ccc; padding: 20px; border-radius: 20px; text-align: center; background: var(--hotel-bg); box-shadow: 6px 6px 12px var(--hotel-shadow-dark); ${esBaja ? 'opacity:.6; filter:grayscale(.5);' : ''}">
-                    <h3 style="margin-top:0; color: var(--hotel-blue); font-size: 1.1rem; text-transform: uppercase;">${a.Nombre}</h3>
+                    <h3 style="margin-top:0; margin-bottom:2px; color: var(--hotel-blue); font-size: 1.1rem; text-transform: uppercase;">${_esc(a.Nombre)}${cant > 1 ? ` <span style="color:var(--hotel-gold)">×${cant}</span>` : ''}</h3>
+                    ${(a.Marca || a.Modelo) ? `<p style="margin:0 0 6px; font-size:.7rem; font-weight:700; color:#7f8c8d; text-transform:uppercase;">${_esc([a.Marca, a.Modelo].filter(Boolean).join(' · '))}</p>` : ''}
+                    ${fotoUrl ? `<img src="${fotoUrl}" alt="Foto" style="width:100%; max-height:150px; object-fit:cover; border-radius:12px; margin:6px 0;">` : ''}
                     <div id="qr-${a.ActivoID}" class="qr-container" style="width: 100px; height: 100px; margin: 15px auto; background: white; padding: 5px; border-radius: 10px;"></div>
-                    <p style="margin: 5px 0; font-size: 0.85rem;"><strong>SERIE:</strong> ${a.SeriePlaca || 'S/N'}</p>
-                    <p style="margin: 5px 0; font-size: 0.8rem;"><strong>COSTO:</strong> $${Number(a.ValorCompra).toFixed(2)} &nbsp;·&nbsp; <strong>EN LIBROS:</strong> $${enLibros}</p>
+                    <p style="margin: 5px 0; font-size: 0.85rem;"><strong>SERIE:</strong> ${_esc(a.SeriePlaca || 'S/N')}</p>
+                    ${a.Ubicacion ? `<p style="margin: 5px 0; font-size: 0.85rem;"><strong>UBICACIÓN:</strong> ${_esc(a.Ubicacion)}</p>` : ''}
+                    <p style="margin: 5px 0; font-size: 0.8rem;"><strong>COSTO:</strong> $${costo.toFixed(2)}${cant > 1 ? ` <span style="opacity:.6">($${Number(a.ValorCompra).toFixed(2)} c/u)</span>` : ''} &nbsp;·&nbsp; <strong>EN LIBROS:</strong> $${enLibros}</p>
+                    ${a.Condicion || a.Responsable ? `<p style="margin: 5px 0; font-size: 0.78rem;">${a.Condicion ? `<strong>COND:</strong> ${_esc(a.Condicion)}` : ''}${a.Condicion && a.Responsable ? ' · ' : ''}${a.Responsable ? `<strong>RESP:</strong> ${_esc(a.Responsable)}` : ''}</p>` : ''}
+                    ${a.OrigenRegistro === 'LEVANTAMIENTO' ? '<p style="margin:3px 0; font-size:.68rem; color:#1e8e4e; font-weight:800;"><i class="fas fa-mobile-screen-button"></i> LEVANTAMIENTO MÓVIL</p>' : ''}
                     <p style="margin: 5px 0; font-size: 0.85rem;"><strong>ESTADO:</strong>
                         <span style="color:${esBaja ? '#e74c3c' : 'var(--hotel-gold)'}; font-weight:800">${a.Estado || 'OPERATIVO'}</span>
                         ${esBaja && a.MotivoBaja ? `<br><span style="font-size:.72rem;color:#7f8c8d">${a.MotivoBaja}${a.ValorBaja ? ` · $${Number(a.ValorBaja).toFixed(2)}` : ''} · ${(a.FechaBaja || '').slice(0, 10)}${a.VoucherBajaPath ? ` · <a href="#" onclick="event.preventDefault();ActivosModule._abrirArchivo('${a.VoucherBajaPath}')" style="color:#2f7be6;font-weight:800">comprobante</a>` : ''}</span>` : ''}
@@ -160,6 +209,11 @@ const ActivosModule = {
                         ${esBaja && a.AsientoBajaID ? `
                             <button class="btn-neo no-print" style="justify-content:center; color:#2e7d32;" onclick="ActivosModule.verAsientoBaja(${a.AsientoBajaID})">
                                 <i class="fas fa-book"></i> VER ASIENTO DE BAJA
+                            </button>
+                        ` : ''}
+                        ${esBaja && esAdmin ? `
+                            <button class="btn-neo no-print" style="justify-content:center; background:#2e7d32; color:#fff;" onclick="ActivosModule.reactivar(${a.ActivoID})">
+                                <i class="fas fa-rotate-left"></i> REACTIVAR (REVIERTE LA BAJA)
                             </button>
                         ` : ''}
                         ${esBaja ? '' : `
@@ -175,6 +229,9 @@ const ActivosModule = {
                             <button class="btn-neo no-print" style="justify-content:center;" onclick="ActivosModule.abrirModalMovimiento(${a.ActivoID})">
                                 <i class="fas fa-exchange-alt"></i> REGISTRAR SALIDA
                             </button>
+                            ${esAdmin ? `<button class="btn-neo no-print" style="justify-content:center; background:#34495e; color:#fff;" onclick="ActivosModule.abrirEdicion(${a.ActivoID})">
+                                <i class="fas fa-pen"></i> EDITAR FICHA
+                            </button>` : ''}
                             <button class="btn-neo no-print" style="justify-content:center; background:#fdeceb; color:#c0392b;" onclick="ActivosModule.abrirBaja(${a.ActivoID})">
                                 <i class="fas fa-gavel"></i> DAR DE BAJA / VENDER
                             </button>
@@ -187,16 +244,19 @@ const ActivosModule = {
         activosFiltrados.forEach(a => {
             const container = document.getElementById(`qr-${a.ActivoID}`);
             if (container && window.QRCode) {
-                container.innerHTML = '';
-                const qrText = `ACTIVO: ${a.Nombre}\nSERIE: ${a.SeriePlaca || 'S/N'}\nSEDE: ${this.sedeActualInfo.NombreComercial}\nID: ${a.ActivoID}`;
-                new window.QRCode(container, {
-                    text: qrText,
-                    width: 100, 
-                    height: 100,
-                    correctLevel: window.QRCode.CorrectLevel.H
-                });
+                try {
+                    crearQRSeguro(container, this._textoQR(a), { width: 100, height: 100, correctLevel: window.QRCode.CorrectLevel.M });
+                } catch (err) {
+                    console.error(`No se pudo generar el QR del activo ${a.ActivoID}:`, err);
+                    container.innerHTML = '<span style="font-size:.65rem;color:#e74c3c;">QR no disponible</span>';
+                }
             }
         });
+    },
+
+    _textoQR(a) {
+        return `ACTIVO: ${a.Nombre}\nSERIE: ${a.SeriePlaca || 'S/N'}\nEMPRESA: ${this.sedeActualInfo.NombreComercial}` +
+               `${a.Ubicacion ? `\nUBICACIÓN: ${a.Ubicacion}` : ''}\nID: ${a.ActivoID}`;
     },
 
     gestionarCambioTipoMovimiento(valor) {
@@ -210,19 +270,21 @@ const ActivosModule = {
     async imprimirTodasLasEtiquetas() {
         if (this.activosCache.length === 0) return alert("No hay activos para imprimir.");
 
-        const sedeNombre = this.sedeActualInfo ? this.sedeActualInfo.NombreComercial : "MASTER HOTEL";
+        const sedeNombre = this.sedeActualInfo ? this.sedeActualInfo.NombreComercial : "EMPRESA";
 
         // Función auxiliar para convertir un texto a QR en Base64 usando el DOM actual
         const generarQRBase64 = (texto) => {
             return new Promise((resolve) => {
                 const tempDiv = document.createElement('div');
-                new window.QRCode(tempDiv, {
-                    text: texto,
-                    width: 90,
-                    height: 90,
-                    correctLevel: window.QRCode.CorrectLevel.M
-                });
-                
+                try {
+                    // Se dibuja a 360 px y la etiqueta lo muestra a 90 px: impreso queda nítido
+                    // (a 90 px reales cada módulo mide 1-2 px y la cámara no lo lee en papel).
+                    crearQRSeguro(tempDiv, texto, { width: 360, height: 360, correctLevel: window.QRCode.CorrectLevel.M });
+                } catch (err) {
+                    console.error('No se pudo generar el QR para la etiqueta:', err);
+                    return resolve('');
+                }
+
                 // Extraer el Base64 del canvas generado
                 setTimeout(() => {
                     const canvas = tempDiv.querySelector('canvas');
@@ -238,9 +300,8 @@ const ActivosModule = {
 
         // Construir HTML inyectando directamente las imágenes
         let etiquetasHTML = '';
-        for (const a of this.activosCache) {
-            const txt = `ACTIVO: ${a.Nombre}\nSERIE: ${a.SeriePlaca || 'N/A'}\nSEDE: ${sedeNombre}\nID: ${a.ActivoID}`;
-            const base64Img = await generarQRBase64(txt);
+        for (const a of this.activosCache.filter(x => !['BAJA', 'VENDIDO'].includes(x.Estado))) {
+            const base64Img = await generarQRBase64(this._textoQR(a));
 
             etiquetasHTML += `
                 <div class="etiqueta">
@@ -249,7 +310,7 @@ const ActivosModule = {
                     <div class="qr-box">
                         <img src="${base64Img}" style="width: 100%; height: 100%; object-fit: contain;">
                     </div>
-                    <div class="footer-tag">S/N: ${a.SeriePlaca || 'N/A'}</div>
+                    <div class="footer-tag">S/N: ${a.SeriePlaca || 'N/A'}${a.Ubicacion ? ' · ' + a.Ubicacion : ''}</div>
                     <div class="footer-tag" style="font-weight:bold;">ID CONTROL: ${a.ActivoID}</div>
                 </div>
             `;
@@ -286,11 +347,11 @@ const ActivosModule = {
     },
 
     async imprimirReporteOficial(tipoFiltro = 'TODOS') {
-        const datos = (tipoFiltro === 'TODOS') 
-            ? this.activosCache 
+        const datos = (tipoFiltro === 'TODOS')
+            ? this.activosCache
             : this.activosCache.filter(a => a.TipoID == tipoFiltro);
 
-        const totalAcumulado = datos.reduce((sum, a) => sum + parseFloat(a.ValorCompra || 0), 0);
+        const totalAcumulado = datos.reduce((sum, a) => sum + parseFloat(a.ValorCompra || 0) * (parseInt(a.Cantidad) || 1), 0);
 
         let logoUrl = '';
         if (this.sedeActualInfo && this.sedeActualInfo.LogoPath) {
@@ -300,7 +361,7 @@ const ActivosModule = {
 
         const fecha = new Date().toLocaleString();
         const ventana = window.open('', '_blank', 'width=900,height=800');
-        
+
         ventana.document.write(`
             <html>
                 <head>
@@ -327,17 +388,19 @@ const ActivosModule = {
                         </div>
                     </header>
                     <table>
-                        <thead><tr><th>Nombre</th><th>Serie</th><th>Estado</th><th>Valor</th></tr></thead>
+                        <thead><tr><th>Nombre</th><th>Ubicación</th><th>Serie</th><th>Cant.</th><th>Estado</th><th>Valor</th></tr></thead>
                         <tbody>
                             ${datos.map(a => `
                                 <tr>
                                     <td>${a.Nombre}</td>
+                                    <td>${a.Ubicacion || '—'}</td>
                                     <td>${a.SeriePlaca || 'S/N'}</td>
+                                    <td>${parseInt(a.Cantidad) || 1}</td>
                                     <td>${a.Estado || 'OPERATIVO'}</td>
-                                    <td>$${parseFloat(a.ValorCompra || 0).toFixed(2)}</td>
+                                    <td>$${(parseFloat(a.ValorCompra || 0) * (parseInt(a.Cantidad) || 1)).toFixed(2)}</td>
                                 </tr>`).join('')}
                             <tr class="total-row">
-                                <td colspan="3" style="text-align: right;">TOTAL GENERAL</td>
+                                <td colspan="5" style="text-align: right;">TOTAL GENERAL</td>
                                 <td>$${totalAcumulado.toFixed(2)}</td>
                             </tr>
                         </tbody>
@@ -434,16 +497,17 @@ const ActivosModule = {
     },
 
     async guardar() {
+        const v = id => (document.getElementById(id)?.value || '').trim();
         const payload = {
-            Nombre: document.getElementById('nombre-input').value.trim(),
-            SeriePlaca: document.getElementById('serie-input').value.trim(),
-            ValorCompra: parseFloat(document.getElementById('valor-input').value) || 0,
-            TipoID: parseInt(document.getElementById('tipo-input').value),
-            SedeActualID: parseInt(this.getSedeId())
+            Nombre: v('nombre-input'), SeriePlaca: v('serie-input'),
+            ValorCompra: parseFloat(v('valor-input')) || 0, Cantidad: parseInt(v('cantidad-input')) || 1,
+            TipoID: parseInt(v('tipo-input')), SedeActualID: parseInt(this.getSedeId()),
+            Ubicacion: v('ubicacion-input'), Marca: v('marca-input'), Modelo: v('modelo-input'),
+            Responsable: v('responsable-activo-input')
         };
 
         if (!payload.Nombre || isNaN(payload.TipoID)) {
-            return alert("Nombre y Tipo de Activo son obligatorios.");
+            return Swal.fire('Faltan datos', 'Nombre y Tipo de Activo son obligatorios.', 'warning');
         }
 
         try {
@@ -451,9 +515,138 @@ const ActivosModule = {
             this.cerrarModal();
             await this.cargarActivos();
         } catch (err) {
-            console.error("Error al guardar activo:", err);
-            alert("Error al guardar activo.");
+            Swal.fire('No se guardó', err.response?.data?.error || err.message, 'error');
         }
+    },
+
+    // ── Levantamiento de inventario desde el celular (empresa activa) ──
+    async mostrarQRLevantamiento() {
+        const sedeId = this.getSedeId();
+        let info;
+        // El QR usa el dominio/IP con el que ESTA app llega a su servidor (Configurar servidor)
+        const base = api.defaults.baseURL.replace(/\/api\/?$/, '');
+        try { info = (await api.get(`/activos/levantamiento-url?sedeId=${sedeId}&base=${encodeURIComponent(base)}`)).data; }
+        catch (e) { return Swal.fire('No disponible', e.response?.data?.error || e.message, 'error'); }
+
+        await loadQRCodeLib();
+        let qr = '';
+        if (window.QRCode) {
+            const tmp = document.createElement('div');
+            try { crearQRSeguro(tmp, info.url, { width: 280, height: 280, correctLevel: window.QRCode.CorrectLevel.M }); } catch (_) {}
+            await new Promise(r => setTimeout(r, 40));
+            const c = tmp.querySelector('canvas'), im = tmp.querySelector('img');
+            qr = c ? c.toDataURL('image/png') : (im ? im.src : '');
+        }
+        const emp = info.empresa || {};
+        Swal.fire({
+            width: 560, showConfirmButton: true, confirmButtonText: 'Listo', confirmButtonColor: '#1a365d',
+            title: 'Levantamiento de inventario',
+            html: `
+                <div style="text-align:left;font-size:.85rem">
+                    <div style="background:#0f1e33;color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px">
+                        <div style="font-size:.6rem;letter-spacing:1px;color:#9fb8d6;font-weight:800">EMPRESA DEL INVENTARIO</div>
+                        <div style="font-size:1.05rem;font-weight:900">${_esc(emp.NombreComercial)}</div>
+                        <div style="font-size:.75rem;color:#9fb8d6">RUC ${_esc(emp.RUC || '—')}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;font-size:.78rem;margin-bottom:6px">
+                        <span><b>Servidor:</b> ${_esc(info.servidor)}</span>
+                        <span style="color:${info.alcanzable ? '#1e8e4e' : '#c0392b'};font-weight:800">${info.alcanzable ? '● accesible desde el celular' : '● no accesible'}</span>
+                    </div>
+                    ${info.aviso ? `<div style="background:#fff4e5;border:1px solid #f5c48b;color:#8a4b00;border-radius:10px;padding:8px 10px;font-size:.75rem;margin-bottom:8px">${_esc(info.aviso)}</div>` : ''}
+                    <div style="text-align:center;margin:10px 0">${qr ? `<img src="${qr}" width="240" height="240" style="background:#fff;padding:10px;border-radius:12px;border:1px solid #e2e8f0">` : '<p>No se pudo generar el QR</p>'}</div>
+                    <div style="font-size:.72rem;word-break:break-all;text-align:center;color:#2f7be6">${_esc(info.url)}</div>
+                    ${(info.alternativas || []).length ? `<div style="font-size:.7rem;color:#718096;margin-top:6px">Otras direcciones de este servidor: ${info.alternativas.map(_esc).join(' · ')}</div>` : ''}
+                    <ol style="font-size:.78rem;line-height:1.6;margin:12px 0 0;padding-left:18px;color:#333">
+                        <li>Escanea el código con la cámara del celular e ingresa con tu usuario.</li>
+                        <li>Escribe el <b>lugar</b> donde vas a inventariar (bodega, oficina, local…). Queda fijo hasta que lo cambies.</li>
+                        <li>Por cada activo: foto, nombre, cantidad, valor y condición → "Guardar y siguiente".</li>
+                        <li>Todo queda en <b>${_esc(emp.NombreComercial)}</b> y aparece aquí al recargar.</li>
+                    </ol>
+                </div>`
+        });
+    },
+
+    // ── Reactivar un activo dado de baja por error (revierte lo contable) ──
+    async reactivar(id) {
+        const a = this.activosCache.find(x => x.ActivoID === id);
+        if (!a) return;
+        const r = await Swal.fire({
+            icon: 'warning', title: 'Reactivar activo', width: 560,
+            html: `<div style="text-align:left;font-size:.85rem">
+                <p><b>${_esc(a.Nombre)}</b> está <b>${_esc(a.Estado)}</b>${a.MotivoBaja ? ` (${_esc(a.MotivoBaja)})` : ''}. Al reactivarlo:</p>
+                <ul style="margin:6px 0 10px;padding-left:18px;line-height:1.6">
+                    <li>Si el mes de la baja sigue abierto, se <b>anula el asiento de baja</b>.</li>
+                    <li>Si ese mes ya está cerrado, se registra un <b>contra-asiento con fecha de hoy</b>.</li>
+                    <li>Si fue venta a crédito sin cobros, se anula la cuenta por cobrar.</li>
+                    <li>La depreciación acumulada vuelve a la contabilizada.</li>
+                </ul>
+                <input id="react-mot" class="swal2-input" style="margin:0;width:100%" placeholder="Motivo (obligatorio)">
+            </div>`,
+            showCancelButton: true, confirmButtonText: 'Reactivar', confirmButtonColor: '#2e7d32', cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const m = document.getElementById('react-mot').value.trim();
+                if (m.length < 5) return Swal.showValidationMessage('Indique el motivo (mínimo 5 caracteres)');
+                return m;
+            }
+        });
+        if (!r.isConfirmed) return;
+        try {
+            const d = (await api.post(`/activos/${id}/reactivar`, { motivo: r.value })).data;
+            const det = d.modo === 'ANULAR' ? 'Se anuló el asiento de baja.'
+                : d.modo === 'CONTRA_ASIENTO' ? `El mes de la baja estaba cerrado: se registró el contra-asiento #${d.contraAsientoId}.`
+                : 'La baja no tenía asiento contable.';
+            Swal.fire({ icon: 'success', title: 'Activo reactivado', text: det + (d.cxcAnuladas?.length ? ' La cuenta por cobrar de la venta quedó anulada.' : ''), confirmButtonColor: '#1a365d' });
+            await this.cargarActivos();
+        } catch (e) { Swal.fire('No se reactivó', e.response?.data?.error || e.message, 'error'); }
+    },
+
+    // ── Editar ficha (solo administrador) ──
+    async abrirEdicion(id) {
+        const a = this.activosCache.find(x => x.ActivoID === id);
+        if (!a) return;
+        const conDep = Number(a.DepreciacionAcumulada) > 0;
+        const tipos = this.tiposCache.map(t => `<option value="${t.TipoID}" ${t.TipoID == a.TipoID ? 'selected' : ''}>${_esc(t.Nombre)}</option>`).join('');
+        const conds = ['', 'BUENO', 'REGULAR', 'MALO', 'DAÑADO'].map(c => `<option value="${c}" ${c === (a.Condicion || '') ? 'selected' : ''}>${c || '—'}</option>`).join('');
+        const campo = (lbl, html) => `<label style="display:block;font-size:.7rem;font-weight:800;color:#1a365d;margin:8px 0 3px">${lbl}</label>${html}`;
+        const inp = (id2, val, extra = '') => `<input id="${id2}" class="swal2-input" style="margin:0;width:100%" value="${_esc(val ?? '')}" ${extra}>`;
+        const { value: f } = await Swal.fire({
+            title: 'Editar activo', width: 620, showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#1a365d',
+            html: `<div style="text-align:left">
+                ${campo('Nombre', inp('ed-nom', a.Nombre))}
+                <div style="display:flex;gap:10px">
+                    <div style="flex:1">${campo('Tipo', `<select id="ed-tipo" class="swal2-select" style="margin:0;width:100%">${tipos}</select>`)}</div>
+                    <div style="flex:1">${campo('Condición', `<select id="ed-cond" class="swal2-select" style="margin:0;width:100%">${conds}</select>`)}</div>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <div style="flex:1">${campo('Valor unitario ($)', inp('ed-val', a.ValorCompra, `type="number" step="0.01" ${conDep ? 'disabled' : ''}`))}</div>
+                    <div style="flex:1">${campo('Cantidad', inp('ed-cant', a.Cantidad || 1, `type="number" min="1" step="1" ${conDep ? 'disabled' : ''}`))}</div>
+                </div>
+                ${conDep ? '<div style="font-size:.72rem;color:#8a4b00">Ya tiene depreciación contabilizada: valor y cantidad no se pueden cambiar.</div>' : ''}
+                ${campo('Ubicación', inp('ed-ubic', a.Ubicacion))}
+                <div style="display:flex;gap:10px">
+                    <div style="flex:1">${campo('Serie / placa', inp('ed-serie', a.SeriePlaca))}</div>
+                    <div style="flex:1">${campo('Responsable', inp('ed-resp', a.Responsable))}</div>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <div style="flex:1">${campo('Marca', inp('ed-marca', a.Marca))}</div>
+                    <div style="flex:1">${campo('Modelo', inp('ed-modelo', a.Modelo))}</div>
+                </div>
+                ${campo('Observación', `<textarea id="ed-obs" class="swal2-textarea" style="margin:0;width:100%">${_esc(a.Observacion || '')}</textarea>`)}
+            </div>`,
+            preConfirm: () => {
+                const g = x => document.getElementById(x).value;
+                if (!g('ed-nom').trim()) return Swal.showValidationMessage('El nombre es obligatorio');
+                return { Nombre: g('ed-nom'), TipoID: g('ed-tipo'), Condicion: g('ed-cond'), ValorCompra: g('ed-val'), Cantidad: g('ed-cant'),
+                         Ubicacion: g('ed-ubic'), SeriePlaca: g('ed-serie'), Responsable: g('ed-resp'), Marca: g('ed-marca'),
+                         Modelo: g('ed-modelo'), Observacion: g('ed-obs') };
+            }
+        });
+        if (!f) return;
+        try {
+            await api.put(`/activos/${id}`, f);
+            window.Toast && window.Toast.fire({ icon: 'success', title: 'Activo actualizado' });
+            await this.cargarActivos();
+        } catch (e) { Swal.fire('No se guardó', e.response?.data?.error || e.message, 'error'); }
     },
 
     async registrarMovimiento() {
@@ -461,7 +654,7 @@ const ActivosModule = {
         const tipoMov = document.getElementById('tipo-mov-input').value;
         const responsable = document.getElementById('responsable-input').value.trim();
         const obs = document.getElementById('obs-input').value.trim();
-        
+
         const payload = {
             ActivoID: parseInt(document.getElementById('activoId-input').value),
             TipoMovimiento: tipoMov,
@@ -551,7 +744,7 @@ const ActivosModule = {
             const res = await api.get('/admin/sedes');
             const sedes = res.data || [];
             const sedeActual = parseInt(this.getSedeId());
-            
+
             const comboSedeDestino = document.getElementById('sede-destino-input');
             if (comboSedeDestino) {
                 comboSedeDestino.innerHTML = sedes
@@ -576,15 +769,15 @@ const ActivosModule = {
         document.getElementById('activoId-input').value = id;
         document.getElementById('form-registro').style.display = 'none';
         document.getElementById('form-movimiento').style.display = 'block';
-        
+
         await this.cargarHistorial(id);
 
         const comboMov = document.getElementById('tipo-mov-input');
         if (comboMov) {
             comboMov.value = 'RECEPCIÓN';
-            comboMov.style.display = 'none'; 
+            comboMov.style.display = 'none';
         }
-        
+
         const contenedorSede = document.getElementById('div-sede-destino');
         if (contenedorSede) contenedorSede.style.display = 'none';
 
@@ -596,7 +789,9 @@ const ActivosModule = {
     },
 
     limpiarFormulario() {
-        ['nombre-input', 'serie-input', 'valor-input', 'activoId-input', 'obs-input', 'sede-destino-input', 'responsable-input'].forEach(id => {
+        const cant = document.getElementById('cantidad-input'); if (cant) cant.value = '1';
+        ['nombre-input', 'serie-input', 'valor-input', 'activoId-input', 'obs-input', 'sede-destino-input', 'responsable-input',
+         'ubicacion-input', 'marca-input', 'modelo-input', 'responsable-activo-input'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });

@@ -9,12 +9,29 @@ const TEMAS = [
   // ── RESUMEN ──────────────────────────────────────────────
   {
     id: 'dashboard', grupo: 'Resumen', titulo: 'Panel general', icono: 'fa-gauge-high',
-    dek: 'La pantalla de inicio: un vistazo rápido a cómo va el negocio.',
+    dek: 'La pantalla de inicio: un vistazo rápido a cómo va el negocio de la empresa activa.',
     html: `
-      <p>Es lo primero que ves al entrar. Muestra tarjetas con lo más importante del momento: ventas del día, saldo de caja, cuentas por cobrar/pagar vencidas, y alertas (por ejemplo, si se le debe sueldo o beneficios al personal).</p>
+      <p>Es lo primero que ves al entrar. Muestra tarjetas con lo más importante del momento: ingresos y gastos del mes, utilidad, asientos, estado de tu caja, y alertas (por ejemplo, si se le debe sueldo o beneficios al personal).</p>
       <h4>Accesos rápidos</h4>
-      <p>Desde aquí puedes saltar directo a los módulos más usados sin pasar por el menú lateral. Si eres administrador, también puedes cambiar de <strong>empresa activa</strong> desde el selector de arriba — todo lo que veas después corresponde a esa empresa.</p>
-      <div class="mn-tip">Si trabajas con varias empresas (sucursales, negocios distintos), recuerda revisar cuál está seleccionada antes de registrar algo — cada documento queda ligado a la empresa activa en ese momento.</div>`
+      <p>Desde aquí puedes saltar directo a los módulos más usados sin pasar por el menú lateral.</p>
+      <div class="mn-tip">Todo lo que ves corresponde a la <strong>empresa activa</strong>, que aparece siempre arriba en el menú lateral (nombre, RUC y su color). Si manejas varias empresas, mira el tema <em>Trabajar con varias empresas</em>.</div>`
+  },
+  {
+    id: 'empresas', grupo: 'Resumen', titulo: 'Trabajar con varias empresas', icono: 'fa-building',
+    dek: 'Cómo saber siempre en qué empresa estás y cómo cambiar de una a otra sin mezclar información.',
+    html: `
+      <p>Si eres dueño o administrador de más de una empresa, cada una lleva su propia contabilidad, inventario, caja, facturación y personal. Nada se mezcla entre ellas.</p>
+      <h4>Al iniciar sesión</h4>
+      <p>Si tienes varias empresas, después de tu clave aparece <strong>"¿Con qué empresa vas a trabajar?"</strong> con una tarjeta por empresa (logo, nombre, razón social y RUC). Elige una y entras directo a ella.</p>
+      <h4>Siempre a la vista</h4>
+      <ul>
+        <li>Arriba del menú lateral está la tarjeta <strong>EMPRESA ACTIVA</strong> con su logo, nombre y RUC.</li>
+        <li>Cada empresa tiene su <strong>color</strong>, que también se ve en la franja superior de la pantalla.</li>
+        <li>Pantallas como Inventario, Activos o Facturación muestran una etiqueta con el nombre de la empresa.</li>
+      </ul>
+      <h4>Cambiar de empresa</h4>
+      <p>Usa el botón <i class="fas fa-right-left"></i> de la tarjeta del menú o el selector <strong>Empresa</strong> de la barra superior. Aparece el aviso <em>"Ahora trabajas en: …"</em> y la pantalla que tenías abierta se recarga con los datos de la nueva empresa.</p>
+      <div class="mn-warn">Antes de registrar una venta, compra o pago, confirma la empresa activa: cada documento queda en la empresa seleccionada en ese momento. Al cerrar sesión se olvida la empresa elegida y el próximo usuario vuelve a elegir.</div>`
   },
   {
     id: 'kpi', grupo: 'Resumen', titulo: 'Tablero KPI', icono: 'fa-chart-column',
@@ -107,17 +124,23 @@ const TEMAS = [
   // ── TRIBUTARIO · SRI ─────────────────────────────────────
   {
     id: 'facturacion', grupo: 'Tributario · SRI', titulo: 'Facturación electrónica', icono: 'fa-file-signature',
-    dek: 'Emitir facturas, notas de crédito/débito, retenciones y gestionar compras — todo firmado y enviado al SRI.',
+    dek: 'Emitir facturas, notas de crédito/débito, retenciones y registrar compras trazables — todo firmado y enviado al SRI.',
     html: `
       <p>Este módulo tiene varias pestañas:</p>
       <ul>
-        <li><strong>Emitir</strong> — genera una factura electrónica: se firma con el certificado de la empresa y se envía al SRI automáticamente.</li>
-        <li><strong>Historial</strong> — todas las facturas emitidas, con su estado ante el SRI (autorizada, rechazada...), reenvío por correo y descarga del RIDE/XML.</li>
-        <li><strong>Compras</strong> — registra lo que le compras a tus proveedores. Debes indicar <strong>qué se compró</strong> (una cuenta contable: inventario, gasto, activo...) para que se genere el asiento; si no la eliges en el momento, queda con el botón <strong>Clasificar</strong> para hacerlo después.</li>
-        <li><strong>Liquidación de compra</strong> — para compras a quienes no emiten factura (proveedores informales).</li>
-        <li><strong>Proveedores</strong> y <strong>Códigos de retención</strong> — catálogos de apoyo.</li>
+        <li><strong>Factura manual</strong> — genera una factura electrónica: se firma con el certificado de la empresa y se envía al SRI. En cada ítem elige la <strong>tarifa de IVA</strong> (grava IVA o IVA 0%); abajo verás el desglose <strong>Subtotal 0%</strong>, <strong>Subtotal 15%</strong> e IVA, igual que en el RIDE.</li>
+        <li><strong>Comprobantes emitidos</strong> — todas las facturas con su estado ante el SRI, reenvío por correo y descarga del RIDE/XML.</li>
+        <li><strong>Compras</strong> — lo que le compras a tus proveedores (ver abajo).</li>
+        <li><strong>Liquidación de compra</strong>, <strong>Proveedores</strong> y <strong>Códigos de retención</strong>.</li>
       </ul>
-      <div class="mn-tip">Las notas de crédito y débito, y las retenciones que emites a proveedores, se manejan desde sus propias pantallas (accesibles desde aquí) y también generan su asiento automáticamente.</div>`
+      <h4>Compras trazables</h4>
+      <ol>
+        <li>Busca y agrega los <strong>productos</strong> que compraste (cantidad y costo unitario sin IVA). Cada producto entra al inventario y al kardex con esta compra como origen, y se actualiza su costo promedio.</li>
+        <li>Lo que no es inventario (un servicio, un gasto) agrégalo con <strong>Gasto / servicio</strong> y elige su cuenta contable (obligatoria).</li>
+        <li>Si hay retenciones, el pago y la cuenta por pagar quedan por el <strong>neto</strong> (total menos retenciones), igual que el asiento.</li>
+      </ol>
+      <p>Una compra no se borra: se <strong>anula</strong> con un motivo, y el sistema revierte el stock, el dinero, la cuenta por pagar y el asiento. El botón de trazabilidad muestra todo lo que generó la compra (kardex, caja, asientos).</p>
+      <div class="mn-tip">El botón <strong>PORTAL SRI</strong> abre SRI en línea en el navegador, para consultar o anular comprobantes y hacer declaraciones.</div>`
   },
   {
     id: 'ats', grupo: 'Tributario · SRI', titulo: 'ATS — Anexo Transaccional', icono: 'fa-file-shield',
@@ -134,17 +157,18 @@ const TEMAS = [
   // ── COMERCIAL ────────────────────────────────────────────
   {
     id: 'pos', grupo: 'Comercial', titulo: 'Punto de venta', icono: 'fa-cart-shopping',
-    dek: 'Registrar una venta: productos o servicios, cliente, forma de pago.',
+    dek: 'Registrar una venta con recibo o factura electrónica, siempre dentro de un turno de caja.',
     html: `
+      <div class="mn-warn">Para vender necesitas tener tu <strong>turno de caja abierto</strong> (contado o crédito). Si está cerrado, el POS te avisa y te lleva a Caja.</div>
       <ol>
-        <li>Busca y agrega los productos/servicios (o escríbelos si no están en el catálogo).</li>
+        <li>Busca y agrega los productos/servicios. Cada línea puede ser con IVA o IVA 0%; abajo ves el desglose de subtotales.</li>
         <li>Escribe el nombre o documento del cliente — si ya existe, se autocompleta.</li>
-        <li>Elige si es <strong>Contado</strong> o <strong>Crédito</strong> (a crédito se crea automáticamente una cuenta por cobrar).</li>
-        <li>Elige el método de pago. Si tu empresa tiene una pasarela configurada (Payphone, Stripe o DeUna), aparece el botón <strong>Cobrar con pasarela</strong> — genera un QR o enlace de pago y confirma solo cuando el cliente paga.</li>
-        <li><strong>Registrar venta</strong>.</li>
+        <li>Elige <strong>Recibo</strong> o <strong>Factura SRI</strong>. La factura usa exactamente los valores de la venta; si el SRI no responde, la venta queda guardada y luego usas <strong>Facturar</strong> en Ventas recientes.</li>
+        <li>Elige <strong>Contado</strong> o <strong>Crédito</strong> y el método de pago. Con pasarela configurada aparece <strong>Cobrar con pasarela</strong>.</li>
+        <li><strong>Registrar venta</strong>. La venta de contado entra como ingreso en tu turno de caja y descuenta el stock con su kardex.</li>
       </ol>
-      <p>En <strong>Ventas recientes</strong> puedes reimprimir el ticket, anular una venta, o ver su asiento contable (incluye el costo de venta si el producto tiene costo cargado).</p>
-      <div class="mn-tip">Si tu empresa configuró impresora térmica, el ticket sale automáticamente al confirmar la venta.</div>`
+      <h4>Anular una venta</h4>
+      <p>Requiere <strong>usuario y contraseña de un administrador</strong> de la empresa y un motivo. Se devuelve el stock y, si fue de contado, se registra la devolución del dinero en caja. Una venta con factura autorizada no se anula: se emite una nota de crédito.</p>`
   },
   {
     id: 'recurrente', grupo: 'Comercial', titulo: 'Omni Recurrente', icono: 'fa-repeat',
@@ -188,45 +212,79 @@ const TEMAS = [
   },
   {
     id: 'caja', grupo: 'Comercial', titulo: 'Caja', icono: 'fa-cash-register',
-    dek: 'Apertura y cierre de turno, y movimientos de efectivo/banco que no vienen de una venta.',
+    dek: 'Apertura y cierre de turno, y movimientos de efectivo que no vienen de un documento.',
     html: `
       <ol>
-        <li><strong>Abrir turno</strong> — indica el monto inicial en efectivo.</li>
-        <li>Durante el turno, registra <strong>movimientos</strong> (ingresos o egresos que no son una venta: por ejemplo, un pago de servicios básicos, o un ingreso de un préstamo). Todo egreso debe llevar un sustento — voucher o número de referencia.</li>
-        <li>Si eliges la <strong>cuenta contable</strong> del movimiento en el momento, se contabiliza al instante; si no, queda con el botón <strong>Clasificar</strong> para hacerlo después.</li>
-        <li><strong>Cerrar turno</strong> — el sistema calcula lo que debería haber según sus registros; tú declaras lo que contaste físicamente. Si hay diferencia, se te pide una observación.</li>
+        <li><strong>Abrir turno</strong> — indica el monto inicial en efectivo. Sin turno abierto no se puede vender, ni cobrar, pagar o comprar en efectivo.</li>
+        <li>Durante el turno, registra <strong>movimientos</strong> que no son una venta (pago de servicios básicos, un ingreso extraordinario…). Todo egreso lleva sustento: voucher, referencia o el comprobante de egreso que genera el sistema.</li>
+        <li>Si eliges la <strong>cuenta contable</strong> del movimiento se contabiliza al instante; si no, queda con <strong>Clasificar</strong>.</li>
+        <li><strong>Cerrar turno</strong> — el sistema calcula lo que debería haber; tú declaras lo que contaste. Si hay diferencia, se pide una observación.</li>
       </ol>
-      <p>Si tu empresa tiene una pasarela de pago configurada, el botón verde de cobro rápido te deja generar un QR/enlace y cobrar sin salir de Caja.</p>`
+      <div class="mn-tip">Los movimientos que nacen de una venta, compra, cobro o pago no se borran desde Caja: se revierten anulando su documento (así la contabilidad no se descuadra).</div>`
   },
 
   // ── OPERACIÓN ────────────────────────────────────────────
   {
     id: 'inventario', grupo: 'Operación', titulo: 'Inventario', icono: 'fa-boxes-stacked',
-    dek: 'Tus productos: precio, costo, stock y categorías.',
+    dek: 'Productos y servicios: precio, costo promedio, stock con kardex trazable y alertas de stock mínimo.',
     html: `
-      <p>Da de alta un producto con su precio de venta, costo, stock mínimo/ideal y si <strong>grava IVA</strong> o no (algunos servicios o productos están exentos — desmarca la casilla si aplica). El costo cargado aquí es el que usa el sistema para calcular automáticamente el costo de cada venta.</p>
-      <p>Los <strong>movimientos de inventario</strong> (ingreso de mercadería, ajustes) quedan registrados con su motivo, para poder rastrear por qué cambió el stock.</p>`
+      <p>Arriba ves el resumen de la empresa: productos, unidades en stock, <strong>valor del inventario al costo</strong>, cuántos están bajo el mínimo y cuántos sin stock. La tabla se filtra por nombre o <strong>código de barras</strong>, categoría, tipo, o "solo bajo mínimo".</p>
+      <h4>Cómo se mueve el stock</h4>
+      <ul>
+        <li><strong>Entra</strong> con las <strong>Compras</strong> (Facturación → Compras), con proveedor, factura y costo.</li>
+        <li><strong>Sale</strong> con las ventas del POS.</li>
+        <li><strong>Ajuste</strong> (botón <i class="fas fa-scale-balanced"></i>) solo para diferencias de conteo físico, mermas o inventario inicial — con motivo obligatorio.</li>
+      </ul>
+      <p>El botón <strong>Kardex</strong> muestra cada entrada y salida con su documento de origen, costo y saldo. La ficha del producto (lápiz) define precio, costo, categoría, si <strong>grava IVA</strong>, stock mínimo/ideal y código de barras.</p>
+      <div class="mn-tip">El botón <strong>Integridad</strong> revisa que cada compra haya entrado al inventario y que stock, kardex y caja cuadren. Úsalo antes de una revisión contable.</div>`
   },
   {
     id: 'activos', grupo: 'Operación', titulo: 'Activos fijos', icono: 'fa-desktop',
-    dek: 'Equipos, vehículos, mobiliario — su ciclo de vida completo, con depreciación.',
+    dek: 'Equipos, vehículos, mobiliario — su ciclo de vida completo, con QR, depreciación, baja y reactivación.',
     html: `
-      <h4>Alta y traslados</h4>
-      <p>Registra un activo nuevo con su costo y, si lo sabes, la vida útil en meses (si no la indicas, el sistema usa un estándar según el tipo: vehículos, equipo de cómputo, mobiliario...). Cada activo tiene un código QR para identificarlo físicamente.</p>
+      <h4>Alta</h4>
+      <p>Registra el activo con su <strong>valor unitario</strong> y <strong>cantidad</strong> (ej. 20 sillas de $85), ubicación, marca, modelo y responsable. El costo contable es valor × cantidad. Si no indicas la vida útil, se usa la del tipo (vehículos 5 años, cómputo 3, mobiliario 10…).</p>
+      <h4>Etiquetas QR</h4>
+      <p>Cada activo tiene su QR con nombre, serie, empresa y ubicación. <strong>Imprimir etiquetas</strong> genera una hoja lista para pegar en los equipos.</p>
+      <h4>Levantamiento con el celular</h4>
+      <p>Botón <strong>LEVANTAMIENTO MÓVIL</strong>: inventario físico caminando con el celular (ver el tema <em>Levantamiento de activos con el celular</em>).</p>
       <h4>Depreciación mensual</h4>
-      <p>Botón <strong>Depreciación</strong> en la parte superior — elige el mes y verás el plan (cuánto le toca depreciar a cada activo ese mes) antes de ejecutarlo. Genera el asiento correspondiente y actualiza el valor en libros. También puede correr sola cada 1º de mes si el administrador lo activó.</p>
-      <h4>Baja o venta</h4>
-      <p>Cuando un activo se vende, se dona o simplemente se da de baja, usa <strong>Dar de baja / Vender</strong>: indica el motivo y, si corresponde, el valor de venta y si fue a crédito. El sistema calcula automáticamente si hubo ganancia o pérdida y genera el asiento — no tienes que calcular nada a mano.</p>`
+      <p>Botón <strong>Depreciación</strong> — elige el mes, revisa el plan y ejecútalo: genera el asiento y actualiza el valor en libros.</p>
+      <h4>Editar, dar de baja y reactivar</h4>
+      <ul>
+        <li><strong>Editar ficha</strong> (administrador): si el activo ya tiene depreciación contabilizada, no se puede cambiar su valor ni su cantidad.</li>
+        <li><strong>Dar de baja / Vender</strong>: indica el motivo y, si se vendió, el valor y si fue a crédito. El sistema calcula la ganancia o pérdida y genera el asiento.</li>
+        <li><strong>Reactivar</strong> (administrador, si se dio de baja por error): si el mes de la baja sigue abierto se anula su asiento; si ya se cerró, se registra un contra-asiento con fecha de hoy. La cuenta por cobrar de la venta se anula si no tiene cobros.</li>
+      </ul>`
+  },
+  {
+    id: 'levantamiento', grupo: 'Operación', titulo: 'Levantamiento de activos con el celular', icono: 'fa-mobile-screen-button',
+    dek: 'Inventario físico de activos desde el celular, por empresa y por lugar, con foto.',
+    html: `
+      <ol>
+        <li>En <strong>Activos fijos</strong> pulsa <strong>LEVANTAMIENTO MÓVIL</strong>. Verás la empresa del inventario, el servidor al que apunta y un QR.</li>
+        <li>Escanea el QR con la cámara del celular e ingresa con tu usuario. La página queda fija en esa empresa (no se puede cambiar desde el celular).</li>
+        <li>Escribe el <strong>lugar</strong> donde vas a inventariar (bodega, oficina, local…). Queda fijo arriba hasta que lo cambies.</li>
+        <li>Por cada activo: foto, nombre, cantidad, valor, condición y responsable → <strong>Guardar y siguiente</strong>.</li>
+      </ol>
+      <p>Todo aparece de inmediato en Activos con la marca "LEVANTAMIENTO MÓVIL", su foto y su ubicación.</p>
+      <div class="mn-tip">El QR usa la misma dirección con la que esta computadora se conecta a su servidor. Si el servidor solo es local, el celular debe estar en el mismo WiFi. Si te quedas sin señal, lo capturado queda guardado en el celular y se envía solo al volver la conexión.</div>`
   },
   {
     id: 'personal', grupo: 'Operación', titulo: 'Personal y nómina', icono: 'fa-id-badge',
-    dek: 'Empleados, roles de pago, anticipos, bonos y liquidaciones.',
+    dek: 'Empleados, tipos de afiliación al IESS, roles de pago, anticipos, bonos y liquidaciones.',
     html: `
-      <p>El cálculo del rol sigue la legislación ecuatoriana: aporte al IESS, décimo tercero, décimo cuarto, fondo de reserva y vacaciones — todo automático según el sueldo y la fecha de ingreso de cada empleado (si empezó a mitad de un período, el sistema prorratea correctamente).</p>
-      <h4>Anticipos y bonos</h4>
-      <p>Puedes registrar un anticipo o un bono en cualquier momento; si marcas "registrar pago", sale de caja de inmediato y se contabiliza aparte — al pagar la nómina del mes, ese monto <strong>no se vuelve a pagar</strong> (el sistema lo descuenta automáticamente para evitar pagarlo dos veces).</p>
-      <h4>Pagar nómina</h4>
-      <p>Genera el rol del período, muestra el neto a pagar por empleado, y al confirmar registra el egreso de caja y el asiento contable completo.</p>`
+      <p>El cálculo del rol sigue la legislación ecuatoriana: aporte al IESS, décimo tercero, décimo cuarto, fondo de reserva y vacaciones — automático según el sueldo, el tipo de afiliación y la fecha de ingreso.</p>
+      <h4>Ingreso a mitad de mes</h4>
+      <p>Si el empleado entra el día D, el primer mes se paga <strong>proporcional</strong>: 30 − D + 1 días (mes comercial de 30). Ej.: ingresa el 27 → 4 días. El comprobante lo indica.</p>
+      <h4>Tipo de afiliación</h4>
+      <ul>
+        <li><strong>General</strong> — relación de dependencia: usa los porcentajes del año (9,45% personal, 11,15% patronal).</li>
+        <li><strong>Gerente / representante legal</strong> (mandatario, relación 109) — 17,60% a cargo de la empresa, base mínima SBU, sin décimos, fondo de reserva ni vacaciones.</li>
+      </ul>
+      <p>Los tipos y sus porcentajes se editan en <strong>Afiliación IESS</strong>; el SBU y los porcentajes del año en <strong>Parámetros IESS/SBU</strong>. Confirma los valores con tu contador cuando cambie la normativa.</p>
+      <h4>Anticipos, bonos y pago de nómina</h4>
+      <p>Un anticipo o bono pagado aparte no se vuelve a pagar en el rol. <strong>Pagar nómina</strong> registra el egreso (en efectivo requiere caja abierta) y el asiento contable completo.</p>`
   },
   {
     id: 'mantenimiento', grupo: 'Operación', titulo: 'Mantenimiento', icono: 'fa-tools',
@@ -263,11 +321,14 @@ const TEMAS = [
       <div class="mn-tip">Para que los respaldos se suban solos a una nube (Google Drive u otra), se configura una sola vez a nivel de servidor — pídeselo a quien te instaló el sistema.</div>`
   },
   {
-    id: 'licencia', grupo: 'Administración', titulo: 'Licencia', icono: 'fa-key',
-    dek: 'Activación de OMNI CORE y verificación de actualizaciones disponibles.',
+    id: 'licencia', grupo: 'Administración', titulo: 'Licencia y actualizaciones', icono: 'fa-key',
+    dek: 'Activación de OMNI CORE y cómo se actualizan la aplicación y el servidor.',
     html: `
-      <p>Aquí ves si la licencia está activa, para qué empresa/edición fue emitida y cuánto le queda de vigencia (o si es perpetua). Para activarla o renovarla, pega la clave que te entregó CasRodsoft Development en el campo y confirma.</p>
-      <p>Más abajo, <strong>Buscar actualización</strong> te dice si hay una versión nueva de OMNI CORE disponible y te da el enlace para descargar el instalador — nunca se actualiza sola, tú decides cuándo instalarla.</p>`
+      <p>Aquí ves si la licencia está activa, para qué empresa/edición fue emitida y su vigencia. Para activarla o renovarla, pega la clave que te entregó CasRodsoft Development.</p>
+      <h4>Actualización de esta aplicación</h4>
+      <p>Es <strong>automática y silenciosa</strong>: la versión nueva se descarga sola y se instala al cerrar la app. Si quieres instalarla de inmediato, aquí aparece <strong>Instalar ahora</strong>. Tu dirección de servidor se conserva al actualizar.</p>
+      <h4>Actualización del servidor</h4>
+      <p>Si hay una versión nueva, aparece <strong>Actualizar ahora</strong>: el servidor se detiene uno o dos minutos y vuelve solo, con los cambios de base de datos aplicados. Hazlo fuera del horario de atención.</p>`
   },
   {
     id: 'auditoria', grupo: 'Administración', titulo: 'Auditoría', icono: 'fa-shield-halved',

@@ -119,9 +119,10 @@ const LoginModule = {
 
                 // Cargar el Shell del sistema (detecta entorno: escritorio o móvil)
                 if (typeof App !== 'undefined' && App.renderShell) {
-                    // Escritorio (Electron)
+                    // Escritorio (Electron): carga sus empresas y, si tiene
+                    // varias, le pide elegir con cuál trabajar.
                     App.user = response.data.user;
-                    App.renderShell();
+                    await App.entrar({ nuevaSesion: true });
                 } else if (typeof AppMobile !== 'undefined') {
                     // Móvil (Capacitor): refresca usuario y enruta por rol
                     AppMobile.user = response.data.user;

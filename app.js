@@ -16,12 +16,153 @@ const App = {
         if (!this.user) {
             this.renderView('login', 'app-root');
         } else {
-            if (this.isSuperAdmin()) {
-                await this.fetchSedes();
-            }
-            this.conectarSocket();
-            this.renderShell();
+            await this.entrar();
         }
+    },
+
+    // ── Empresa activa ────────────────────────────────────────
+    //  Un dueño puede tener varias empresas (Sedes). La empresa activa
+    //  vive en localStorage('currentSedeId') y TODA la app la usa. Se
+    //  muestra siempre (tarjeta en el menú + color en la barra superior)
+    //  para que nunca parezca "un solo negocio".
+
+    /** Tras iniciar sesión (o al abrir con sesión guardada): carga las
+     *  empresas y, si hay más de una y no hay una válida elegida, pide elegir. */
+    async entrar({ nuevaSesion = false } = {}) {
+        if (nuevaSesion) localStorage.removeItem('currentSedeId');
+        await this.fetchSedes();
+        const actual = localStorage.getItem('currentSedeId');
+        const valida = actual && this.sedes.some(s => String(s.SedeID) === String(actual));
+        if (!valida) localStorage.removeItem('currentSedeId');
+
+        if (this.isSuperAdmin() && this.sedes.length > 1 && !valida) {
+            this.renderElegirEmpresa();
+            return;
+        }
+        if (!valida) {
+            const propia = this.sedes.find(s => String(s.SedeID) === String(this.user?.SedeID)) || this.sedes[0];
+            if (propia) localStorage.setItem('currentSedeId', propia.SedeID);
+        }
+        if (!window.socket) this.conectarSocket();
+        this.renderShell();
+    },
+
+    empresaActiva() {
+        const id = localStorage.getItem('currentSedeId') || this.user?.SedeID;
+        return this.sedes.find(s => String(s.SedeID) === String(id))
+            || { SedeID: id, NombreComercial: 'Empresa', RUC_NIT: '' };
+    },
+
+    colorEmpresa(sedeId) {
+        const paleta = ['#2f7be6', '#16a085', '#8e44ad', '#d35400', '#c0392b', '#2c3e50', '#b7950b', '#00838f'];
+        const i = this.sedes.findIndex(s => String(s.SedeID) === String(sedeId));
+        return paleta[(i >= 0 ? i : (parseInt(sedeId) || 0)) % paleta.length];
+    },
+
+    _srvBase() {
+        return ((window.AppConfig && window.AppConfig.apiUrl) || 'http://localhost:3636/api').replace(/\/api\/?$/, '');
+    },
+
+    _esc(v) { return String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); },
+
+    /** Logo de la empresa o, si no tiene, sus iniciales sobre su color. */
+    _logoEmpresa(s, tam = 38) {
+        const color = this.colorEmpresa(s.SedeID);
+        const ini = this._esc(String(s.NombreComercial || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+        const caja = `width:${tam}px;height:${tam}px;border-radius:${Math.round(tam / 4)}px;flex-shrink:0;`;
+        const iniciales = `<span style="${caja}display:flex;align-items:center;justify-content:center;background:${color};color:#fff;font-weight:900;font-size:${Math.round(tam * 0.38)}px">${ini}</span>`;
+        if (!s.LogoPath) return iniciales;
+        return `<img src="${this._srvBase()}/uploads/${this._esc(s.LogoPath)}" style="${caja}object-fit:cover;background:#fff" onerror="this.outerHTML=${this._esc(JSON.stringify(iniciales))}">`;
+    },
+
+    /** Pantalla completa para elegir la empresa (después de iniciar sesión). */
+    renderElegirEmpresa() {
+        const root = document.getElementById('app-root');
+        const tarjetas = this.sedes.map(s => `
+            <button class="omni-elige-card" style="--emp:${this.colorEmpresa(s.SedeID)}" onclick="App.elegirEmpresa(${s.SedeID})">
+                ${this._logoEmpresa(s, 54)}
+                <div><b>${this._esc(s.NombreComercial)}</b>
+                <small>${s.RazonSocial && s.RazonSocial !== s.NombreComercial ? this._esc(s.RazonSocial) + ' · ' : ''}RUC ${this._esc(s.RUC_NIT || '—')}</small></div>
+                <i class="fas fa-arrow-right"></i>
+            </button>`).join('');
+        root.innerHTML = `
+            <div class="omni-elige">
+                <div class="omni-elige-box">
+                    <img src="./assets/omnicore-logo.png" alt="OMNI CORE" style="height:44px">
+                    <h2>¿Con qué empresa vas a trabajar?</h2>
+                    <p>Hola ${this._esc(this.user?.NombreFull || '')}. Tienes ${this.sedes.length} empresas; todo lo que registres quedará en la que elijas. Puedes cambiarla después desde el menú.</p>
+                    <div class="omni-elige-grid">${tarjetas}</div>
+                    <button class="omni-elige-salir" onclick="App.clearSession()"><i class="fas fa-arrow-right-from-bracket"></i> Salir</button>
+                </div>
+            </div>
+            <style>
+                .omni-elige { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(160deg,#0f1e33,#1a3a66); font-family:'Inter','Segoe UI',sans-serif; padding:24px; }
+                .omni-elige-box { background:#fff; border-radius:18px; padding:32px 34px; width:100%; max-width:620px; box-shadow:0 20px 60px rgba(0,0,0,.35); text-align:center; }
+                .omni-elige-box h2 { margin:14px 0 6px; color:#1a365d; font-size:1.35rem; font-weight:900; }
+                .omni-elige-box p { margin:0 0 20px; color:#5b6b80; font-size:.85rem; }
+                .omni-elige-grid { display:flex; flex-direction:column; gap:10px; max-height:52vh; overflow-y:auto; padding:2px; }
+                .omni-elige-card { display:flex; align-items:center; gap:14px; text-align:left; background:#f7f9fc; border:1px solid #e2e8f0; border-left:5px solid var(--emp); border-radius:12px; padding:12px 16px; cursor:pointer; font-family:inherit; transition:all .15s; }
+                .omni-elige-card:hover { background:#eef4ff; transform:translateX(3px); }
+                .omni-elige-card > div { flex:1; min-width:0; }
+                .omni-elige-card b { display:block; color:#1a365d; font-size:.98rem; font-weight:900; }
+                .omni-elige-card small { color:#718096; font-size:.75rem; }
+                .omni-elige-card > i { color:var(--emp); }
+                .omni-elige-salir { margin-top:18px; background:none; border:none; color:#c0392b; font-weight:800; cursor:pointer; font-size:.8rem; }
+            </style>`;
+    },
+
+    elegirEmpresa(sedeId) {
+        localStorage.setItem('currentSedeId', sedeId);
+        if (!window.socket) this.conectarSocket();
+        this.renderShell();
+        this._avisoEmpresa();
+    },
+
+    /** Cambio de empresa desde el menú: actualiza todo y avisa claramente. */
+    cambiarEmpresa(sedeId) {
+        if (String(sedeId) === String(localStorage.getItem('currentSedeId'))) return;
+        localStorage.setItem('currentSedeId', sedeId);
+        this._pintarEmpresaActiva();
+        this.renderView(this._currentView || 'dashboard', 'viewport');
+        this._avisoEmpresa();
+    },
+
+    _avisoEmpresa() {
+        const e = this.empresaActiva();
+        if (window.Toast) window.Toast.fire({ icon: 'info', title: `Ahora trabajas en: ${e.NombreComercial}`, text: e.RUC_NIT ? `RUC ${e.RUC_NIT}` : '' });
+    },
+
+    /** Tarjeta de empresa en el menú lateral + color de la barra superior + selector. */
+    _pintarEmpresaActiva() {
+        const e = this.empresaActiva();
+        const color = this.colorEmpresa(e.SedeID);
+        document.documentElement.style.setProperty('--omni-emp', color);
+        const card = document.getElementById('omni-emp-card');
+        if (card) {
+            const varias = this.isSuperAdmin() && this.sedes.length > 1;
+            card.innerHTML = `
+                ${this._logoEmpresa(e, 40)}
+                <div class="omni-emp-txt"><small>EMPRESA ACTIVA</small><b title="${this._esc(e.NombreComercial)}">${this._esc(e.NombreComercial)}</b>
+                <span>RUC ${this._esc(e.RUC_NIT || '—')}</span></div>
+                ${varias ? `<button title="Cambiar de empresa" onclick="App.abrirCambioEmpresa()"><i class="fas fa-right-left"></i></button>` : ''}`;
+        }
+        const sel = document.getElementById('globalSedeSelector');
+        if (sel) sel.value = e.SedeID;
+    },
+
+    /** Cambio de empresa desde la tarjeta del menú: lista con logo y RUC. */
+    abrirCambioEmpresa() {
+        const actual = String(this.empresaActiva().SedeID);
+        Swal.fire({
+            title: 'Cambiar de empresa', width: 560, showConfirmButton: false, showCloseButton: true,
+            html: `<div style="display:flex;flex-direction:column;gap:8px;text-align:left">${this.sedes.map(s => `
+                <button onclick="Swal.close();App.cambiarEmpresa(${s.SedeID})" style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;cursor:pointer;font-family:inherit;
+                    border:1px solid ${String(s.SedeID) === actual ? this.colorEmpresa(s.SedeID) : '#e2e8f0'};border-left:5px solid ${this.colorEmpresa(s.SedeID)};background:${String(s.SedeID) === actual ? '#eef4ff' : '#f7f9fc'}">
+                    ${this._logoEmpresa(s, 36)}
+                    <span style="flex:1"><b style="display:block;color:#1a365d">${this._esc(s.NombreComercial)}</b><small style="color:#718096">RUC ${this._esc(s.RUC_NIT || '—')}</small></span>
+                    ${String(s.SedeID) === actual ? '<small style="color:#2f7be6;font-weight:800">ACTUAL</small>' : ''}
+                </button>`).join('')}</div>`
+        });
     },
 
     // ── Auto-actualización del cliente (electron-updater vía main.js) ──
@@ -133,40 +274,45 @@ const App = {
     async fetchSedes() {
         try {
             const res = await api.get('/admin/sedes');
-            this.sedes = res.data;
+            const todas = Array.isArray(res.data) ? res.data : [];
+            // Un colaborador solo trabaja en su empresa; el administrador ve las de su cuenta.
+            this.sedes = this.isSuperAdmin() ? todas
+                : todas.filter(s => String(s.SedeID) === String(this.user?.SedeID));
         } catch (err) {
             console.error("Error cargando sedes para selector:", err);
         }
     },
 
-    renderSedeSelector(containerId, callback) {
+    // UN SOLO selector de empresa: el de la barra superior (id globalSedeSelector).
+    // Las vistas que antes dibujaban su propio selector reciben solo una
+    // etiqueta con la empresa activa (al cambiar arriba, la vista se recarga).
+    renderSedeSelector(containerId, callback, _intentos = 0) {
         const container = document.getElementById(containerId);
-        
-        // Si el contenedor no existe aún, reintentar en 50ms (Soluciona el lag del DOM)
+
+        // Si el contenedor no existe aún, reintentar (lag del DOM), con tope
         if (!container) {
-            setTimeout(() => this.renderSedeSelector(containerId, callback), 50);
+            if (_intentos < 40) setTimeout(() => this.renderSedeSelector(containerId, callback, _intentos + 1), 50);
+            return;
+        }
+        if (this.sedes.length === 0) return;
+
+        const e = this.empresaActiva();
+        if (containerId !== 'globalSedeContainer') {
+            container.innerHTML = `<span class="omni-empchip" style="--emp:${this.colorEmpresa(e.SedeID)}"
+                title="Empresa activa. Se cambia desde el menú lateral o la barra superior."><i class="fas fa-building"></i> ${this._esc(e.NombreComercial)}</span>`;
             return;
         }
 
-        if (!this.isSuperAdmin() || this.sedes.length === 0) return;
-
-        const currentSede = localStorage.getItem('currentSedeId') || (this.user ? this.user.SedeID : null);
-
+        if (!this.isSuperAdmin() || this.sedes.length < 2) { container.innerHTML = ''; return; }
         container.innerHTML = `
-            <div class="omni-sedepill" title="Empresa / establecimiento operativo">
+            <div class="omni-sedepill" title="Empresa activa: todo lo que veas y registres es de esta empresa">
                 <i class="fas fa-building"></i>
                 <span>Empresa</span>
                 <select id="globalSedeSelector">
-                    ${this.sedes.map(s => `<option value="${s.SedeID}" ${s.SedeID == currentSede ? 'selected' : ''}>${s.NombreComercial.toUpperCase()}</option>`).join('')}
+                    ${this.sedes.map(s => `<option value="${s.SedeID}" ${String(s.SedeID) === String(e.SedeID) ? 'selected' : ''}>${this._esc(s.NombreComercial).toUpperCase()}</option>`).join('')}
                 </select>
             </div>`;
-
-        const selector = document.getElementById('globalSedeSelector');
-        selector.onchange = (e) => {
-            const newSedeId = e.target.value;
-            localStorage.setItem('currentSedeId', newSedeId);
-            if (callback) callback(newSedeId);
-        };
+        document.getElementById('globalSedeSelector').onchange = (ev) => this.cambiarEmpresa(ev.target.value);
     },
 
     renderShell() {
@@ -231,6 +377,7 @@ const App = {
                         <img src="./assets/omnicore-logo.png" alt="OMNI CORE">
                         <div><b>OMNI CORE</b><small>Plataforma Contable</small></div>
                     </div>
+                    <div id="omni-emp-card" class="omni-emp"></div>
                     <nav class="omni-nav">${navHtml}</nav>
                     <div class="omni-side-foot">
                         <div class="omni-user">
@@ -260,6 +407,15 @@ const App = {
                 .omni-brand img { height:34px; width:34px; object-fit:contain; }
                 .omni-brand b { display:block; color:#fff; font-size:.95rem; font-weight:900; letter-spacing:2px; }
                 .omni-brand small { color:#7fa8d6; font-size:.62rem; letter-spacing:1px; text-transform:uppercase; }
+                .omni-emp { display:flex; align-items:center; gap:10px; margin:12px 12px 2px; padding:10px 10px 10px 12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-left:4px solid var(--omni-emp,#2f7be6); border-radius:10px; }
+                .omni-emp-txt { flex:1; min-width:0; }
+                .omni-emp-txt small { display:block; font-size:.55rem; font-weight:800; letter-spacing:1.2px; color:#7fa8d6; }
+                .omni-emp-txt b { display:block; color:#fff; font-size:.82rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .omni-emp-txt span { display:block; color:#9fb8d6; font-size:.65rem; }
+                .omni-emp button { background:rgba(255,255,255,.1); border:none; color:#fff; width:30px; height:30px; border-radius:8px; cursor:pointer; flex-shrink:0; }
+                .omni-emp button:hover { background:var(--omni-emp,#2f7be6); }
+                .omni-empchip { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:20px; background:#fff; border:1px solid #e0e7f0; border-left:4px solid var(--emp); font-size:.75rem; font-weight:800; color:#1a365d; }
+                .omni-empchip i { color:var(--emp); }
                 .omni-nav { flex:1; overflow-y:auto; padding:10px 0 20px; }
                 .omni-nav::-webkit-scrollbar { width:5px; }
                 .omni-nav::-webkit-scrollbar-thumb { background:#2b436a; border-radius:4px; }
@@ -278,7 +434,7 @@ const App = {
                 .omni-side-foot button { width:100%; background:rgba(231,76,60,.12); color:#ff8b7d; border:none; padding:9px; border-radius:8px; font-weight:800; font-size:.75rem; cursor:pointer; }
                 .omni-side-foot button:hover { background:rgba(231,76,60,.22); }
                 .omni-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-                .omni-topbar { height:54px; flex-shrink:0; background:#fff; border-bottom:1px solid #e3e8ef; display:flex; align-items:center; justify-content:space-between; padding:0 26px; }
+                .omni-topbar { height:54px; flex-shrink:0; background:#fff; border-bottom:1px solid #e3e8ef; border-top:3px solid var(--omni-emp,#2f7be6); display:flex; align-items:center; justify-content:space-between; padding:0 26px; }
                 .omni-crumb { font-size:.9rem; font-weight:800; color:#1a365d; letter-spacing:.5px; }
                 .omni-topbar-r { display:flex; align-items:center; gap:16px; }
                 .omni-topbar-r #globalSedeContainer { display:flex; align-items:center; }
@@ -296,7 +452,8 @@ const App = {
                 .omni-licpill:hover { filter:brightness(.96); }
             </style>
         `;
-        if (this.isSuperAdmin()) this.renderSedeSelector('globalSedeContainer', () => this.renderView(this._currentView || 'dashboard', 'viewport'));
+        this._pintarEmpresaActiva();
+        this.renderSedeSelector('globalSedeContainer');
         if (this.isSuperAdmin()) this.cargarLicenciaPill();
         this.renderView('dashboard', 'viewport');
     },
