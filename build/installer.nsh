@@ -66,3 +66,21 @@
 !macro customUnInstallCheckCurrentUser
   !insertmacro _OMNI_UNINSTALL_CHECK
 !macroend
+
+; Instalaciones antiguas (variante "Local" ≤ 4.5.5, instalador con carpeta
+; elegible) quedaron en C:\Program Files\OMNI CORE. Este instalador es por
+; usuario y SIN elevación: reutilizar esa carpeta falla con "Error al abrir
+; el archivo para escritura". Si la carpeta registrada no es escribible, se
+; instala en la carpeta del usuario (%LocalAppData%\Programs). Los accesos
+; directos se recrean apuntando a la nueva ubicación.
+!macro customInit
+  ClearErrors
+  CreateDirectory "$INSTDIR"
+  FileOpen $0 "$INSTDIR\.omni-escritura" w
+  ${If} ${Errors}
+    StrCpy $INSTDIR "$LocalAppData\Programs\${APP_FILENAME}"
+  ${Else}
+    FileClose $0
+    Delete "$INSTDIR\.omni-escritura"
+  ${EndIf}
+!macroend
