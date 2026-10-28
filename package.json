@@ -1,6 +1,6 @@
 {
   "name": "omnicore-frontend",
-  "version": "4.5.15",
+  "version": "4.5.16",
   "description": "OMNI CORE — Terminal de escritorio (Electron)",
   "main": "main.js",
   "scripts": {
